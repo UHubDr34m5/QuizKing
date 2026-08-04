@@ -4,7 +4,7 @@
  * GASをデプロイしたら、次の値を /exec で終わるウェブアプリURLに置き換えてください。
  * 例: https://script.google.com/macros/s/AKfycb.../exec
  */
-const GAS_WEB_APP_URL = "PASTE_YOUR_GAS_WEB_APP_EXEC_URL_HERE";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxrGmTjOOR9Fz_UyCSzVfTtnERvPudy2jGZelWFmTxcuc6O5iFoIPuH2vaTGVJWvoKW/exec";
 
 const SUBJECTS_FALLBACK = [
   { id: "japanese", name: "国語", icon: "本", color: "#b7f43a", description: "ことばの力を磨き、表現と読解の土台をつくろう。", categories: ["漢字", "四字熟語", "類義語・対義語", "諺", "故事成語", "文法", "文学"] },
