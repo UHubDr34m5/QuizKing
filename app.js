@@ -54,6 +54,7 @@ const STORAGE = {
   clientId: "quizking_client_id_v1",
   stats: "quizking_stats_v1",
   attempts: "quizking_attempts_v1",
+  kanjiBest: "quizking_kanji_best_v1",
 };
 
 const app = document.getElementById("app");
@@ -88,6 +89,20 @@ const state = {
   attempts: readStorage(STORAGE.attempts, []),
   rankings: [],
   adminKey: "",
+  kanjiDifficulty: 0,
+  kanjiQuestionCount: 10,
+  kanjiQuestions: [],
+  kanjiIndex: 0,
+  kanjiResponse: "",
+  kanjiAnswered: false,
+  kanjiTimeLeft: 15,
+  kanjiLives: 3,
+  kanjiScore: 0,
+  kanjiStreak: 0,
+  kanjiMaxStreak: 0,
+  kanjiResults: [],
+  kanjiLatestResult: null,
+  kanjiBest: readStorage(STORAGE.kanjiBest, { score: 0, streak: 0 }),
 };
 
 if (state.user) {
@@ -135,6 +150,17 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function normalizeImageUrl(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" ? url.href : "";
+  } catch (_error) {
+    return "";
+  }
+}
+
 function normalizeAnswer(value) {
   return String(value ?? "")
     .normalize("NFKC")
@@ -142,6 +168,50 @@ function normalizeAnswer(value) {
     .toLowerCase()
     .replace(/[。、．.！!？?\s]/g, "")
     .replace(/^アレクサンダーグラハム/, "");
+}
+
+function normalizeReading(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/[ァ-ヶ]/g, (character) => String.fromCharCode(character.charCodeAt(0) - 0x60))
+    .replace(/[\s　。、，,.・･！!？?「」『』（）()\-ー]/g, "");
+}
+
+function extractKanjiTarget(question) {
+  const prompt = String(question?.prompt || "");
+  if (!/(?:何と|なんと|どう)読む|読み方/.test(prompt)) return "";
+  const quoted = [...prompt.matchAll(/「([^」]{1,24})」/g)].map((match) => match[1]);
+  const target = quoted.at(-1) || "";
+  return /[\u3400-\u9fff々〆ヵヶ]/u.test(target) ? target : "";
+}
+
+function acceptedKanjiReadings(answer) {
+  const raw = String(answer ?? "").replace(/[（(][^）)]*[）)]/g, "");
+  return raw
+    .split(/[、,，／/;；\n]+/)
+    .map(normalizeReading)
+    .filter(Boolean);
+}
+
+function isKanjiReadingQuestion(question) {
+  return question?.subjectId === "japanese"
+    && question?.category === "漢字"
+    && Boolean(extractKanjiTarget(question))
+    && acceptedKanjiReadings(question.answer).length > 0;
+}
+
+function getKanjiReadingQuestions(difficulty = 0) {
+  return state.questions.filter((question) => {
+    return isKanjiReadingQuestion(question)
+      && (!difficulty || Number(question.difficulty) === Number(difficulty));
+  });
+}
+
+function isKanjiReadingCorrect(response, question) {
+  const normalized = normalizeReading(response);
+  return Boolean(normalized) && acceptedKanjiReadings(question?.answer).includes(normalized);
 }
 
 function formatDate(value) {
@@ -268,6 +338,7 @@ function connectionMarkup() {
 function headerMarkup() {
   const navItems = [
     ["home", "ホーム"],
+    ["kanji", "漢字キング"],
     ["records", "学習記録"],
     ["ranking", "ランキング"],
   ];
@@ -289,8 +360,8 @@ function headerMarkup() {
 }
 
 function mobileNavMarkup() {
-  if (state.view === "quiz") return "";
-  const navItems = [["home", "⌂", "ホーム"], ["records", "▥", "学習記録"], ["ranking", "♛", "ランキング"]];
+  if (["quiz", "kanji-game"].includes(state.view)) return "";
+  const navItems = [["home", "⌂", "ホーム"], ["kanji", "読", "漢字"], ["records", "▥", "記録"], ["ranking", "♛", "順位"]];
   return `
     <nav class="mobile-nav" aria-label="スマートフォン用メニュー">
       ${navItems.map(([view, icon, label]) => `
@@ -340,6 +411,7 @@ function homeMarkup() {
     ? Math.round((state.stats.correctAnswers / state.stats.totalAnswers) * 100)
     : 0;
   const level = Math.floor(state.stats.totalXp / 500) + 1;
+  const kanjiQuestionCount = getKanjiReadingQuestions().length;
 
   return `
     <section class="hero">
@@ -365,6 +437,24 @@ function homeMarkup() {
     <section class="challenge-strip">
       <div><span class="challenge-icon">⚡</span><div><p>今日のデイリーチャレンジ</p><strong>全分野から5問・全問正解で50XPボーナス</strong></div></div>
       <button data-action="quick-quiz">挑戦する →</button>
+    </section>
+    <section class="kanji-feature" aria-labelledby="kanji-feature-title">
+      <div class="kanji-feature-copy">
+        <p class="section-kicker">SPECIAL GAME</p>
+        <h2 id="kanji-feature-title"><span>漢字</span>キング</h2>
+        <p>大きく表示される漢字の読みを、15秒以内に入力。<br>3つのライフで連続正解を目指そう。</p>
+        <div class="kanji-feature-stats">
+          <span><strong>${kanjiQuestionCount}</strong> 語 公開中</span>
+          <span><strong>${state.kanjiBest.score.toLocaleString()}</strong> BEST SCORE</span>
+        </div>
+        <button class="kanji-feature-button" data-action="navigate" data-view="kanji" ${kanjiQuestionCount ? "" : "disabled"}>挑戦する <span>→</span></button>
+      </div>
+      <div class="kanji-feature-visual" aria-hidden="true">
+        <span class="kanji-orbit orbit-one">読</span>
+        <span class="kanji-orbit orbit-two">問</span>
+        <strong>漢</strong>
+        <small>よみを<br>こたえよ</small>
+      </div>
     </section>
     <section aria-labelledby="subjects-heading">
       <div class="section-heading-row">
@@ -460,6 +550,122 @@ function settingsMarkup() {
   `;
 }
 
+function kanjiSetupMarkup() {
+  const allQuestions = getKanjiReadingQuestions();
+  const availableQuestions = getKanjiReadingQuestions(state.kanjiDifficulty);
+  const difficultyCounts = [1, 2, 3].map((difficulty) => getKanjiReadingQuestions(difficulty).length);
+  const playableCount = Math.min(state.kanjiQuestionCount, availableQuestions.length);
+  return `
+    <section class="kanji-setup">
+      <div class="kanji-setup-hero">
+        <button class="back-button" data-action="navigate" data-view="home">← ホームへ</button>
+        <p class="section-kicker">KANJI READING BATTLE</p>
+        <h1><span>漢字</span>キング</h1>
+        <p>表示された漢字の読みをひらがなで入力。<br>1問15秒、ライフがなくなる前に王座を目指せ。</p>
+        <div class="kanji-rules">
+          <div><strong>15</strong><span>秒／1問</span></div>
+          <div><strong>3</strong><span>ライフ</span></div>
+          <div><strong>${allQuestions.length}</strong><span>公開問題</span></div>
+        </div>
+      </div>
+      <div class="kanji-setup-panel">
+        <div class="kanji-emblem" aria-hidden="true">読</div>
+        <h2>挑戦内容</h2>
+        <div class="setting-group">
+          <label>難易度</label>
+          <div class="segmented kanji-segmented">
+            ${[[0, `すべて (${allQuestions.length})`], [1, `★ (${difficultyCounts[0]})`], [2, `★★ (${difficultyCounts[1]})`], [3, `★★★ (${difficultyCounts[2]})`]].map(([value, label]) => `<button class="${state.kanjiDifficulty === value ? "active" : ""}" data-action="set-kanji-difficulty" data-value="${value}">${label}</button>`).join("")}
+          </div>
+        </div>
+        <div class="setting-group">
+          <label>問題数</label>
+          <div class="segmented kanji-segmented">
+            ${[5, 10, 20].map((count) => `<button class="${state.kanjiQuestionCount === count ? "active" : ""}" data-action="set-kanji-count" data-value="${count}">${count}問</button>`).join("")}
+          </div>
+          <p class="kanji-availability">この条件では ${availableQuestions.length}問。${availableQuestions.length && playableCount < state.kanjiQuestionCount ? `${playableCount}問すべてを出題します。` : ""}</p>
+        </div>
+        <button class="kanji-start-button" data-action="start-kanji-game" ${availableQuestions.length ? "" : "disabled"}>
+          <span>挑戦開始</span><i>→</i>
+        </button>
+        <p class="kanji-database-note">スプレッドシートで「国語／漢字」の読み問題を公開すると、このゲームにも自動で追加されます。</p>
+      </div>
+    </section>
+  `;
+}
+
+function kanjiGameMarkup() {
+  const question = state.kanjiQuestions[state.kanjiIndex];
+  if (!question) return '<p class="empty-state">漢字読み問題を準備できませんでした。</p>';
+  const target = extractKanjiTarget(question);
+  const result = state.kanjiResults.at(-1);
+  const isCorrect = state.kanjiAnswered && Boolean(result?.correct);
+  const progress = ((state.kanjiIndex + (state.kanjiAnswered ? 1 : 0)) / state.kanjiQuestions.length) * 100;
+  const timerProgress = Math.max(0, (state.kanjiTimeLeft / 15) * 100);
+  const lives = Array.from({ length: 3 }, (_, index) => `<span class="${index < state.kanjiLives ? "alive" : "lost"}">♥</span>`).join("");
+  return `
+    <section class="kanji-game-stage">
+      <div class="kanji-game-topbar">
+        <button class="kanji-exit" data-action="exit-kanji-game">終了</button>
+        <div class="kanji-game-progress"><span style="width:${progress}%"></span></div>
+        <div class="kanji-lives" aria-label="残りライフ ${state.kanjiLives}">${lives}</div>
+      </div>
+      <article class="kanji-game-card ${state.kanjiAnswered ? (isCorrect ? "is-correct" : "is-incorrect") : ""}">
+        <div class="kanji-game-status">
+          <span>第 ${state.kanjiIndex + 1} 問 / ${state.kanjiQuestions.length}</span>
+          <strong>${state.kanjiScore.toLocaleString()} <small>PTS</small></strong>
+          <span>連続 ${state.kanjiStreak}</span>
+        </div>
+        <div class="kanji-timer" aria-label="残り時間 ${state.kanjiTimeLeft}秒">
+          <span class="kanji-timer-bar" style="width:${timerProgress}%"></span>
+          <strong>${state.kanjiTimeLeft}</strong><small>秒</small>
+        </div>
+        <div class="kanji-prompt-label">この漢字の読みは？</div>
+        <div class="kanji-display" lang="ja">${escapeHtml(target)}</div>
+        <div class="kanji-difficulty">${"★".repeat(Number(question.difficulty) || 1)}<span>${escapeHtml(question.prompt)}</span></div>
+        ${state.kanjiAnswered ? `
+          <div class="kanji-feedback ${isCorrect ? "correct" : "incorrect"}" role="status">
+            <strong>${isCorrect ? "正解！" : state.kanjiResponse ? "不正解" : "時間切れ"}</strong>
+            <span>よみ：${escapeHtml(question.answer)}</span>
+            <p>${escapeHtml(question.explanation)}</p>
+          </div>
+          <button class="kanji-next-button" data-action="next-kanji-question">${state.kanjiLives <= 0 || state.kanjiIndex + 1 >= state.kanjiQuestions.length ? "結果を見る" : "次の漢字へ"} <span>→</span></button>
+        ` : `
+          <form id="kanji-answer-form" class="kanji-answer-form">
+            <label for="kanji-answer">よみを入力</label>
+            <div><input id="kanji-answer" name="answer" value="${escapeHtml(state.kanjiResponse)}" placeholder="ひらがなで入力" autocomplete="off" autocapitalize="none" spellcheck="false"><button type="submit">決定</button></div>
+          </form>
+        `}
+      </article>
+    </section>
+  `;
+}
+
+function kanjiResultMarkup() {
+  const result = state.kanjiLatestResult;
+  if (!result) return '<p class="empty-state">結果がありません。</p>';
+  const title = result.rate === 100 ? "完全制覇！" : result.rate >= 70 ? "見事な読み！" : "挑戦完了！";
+  return `
+    <section class="kanji-result-card">
+      <div class="kanji-result-seal">王</div>
+      <p class="section-kicker">KANJI BATTLE COMPLETE</p>
+      <h1>${title}</h1>
+      <p class="kanji-result-score">${result.score.toLocaleString()}<small> PTS</small></p>
+      <p class="page-description">${result.isBest ? "自己ベスト更新！漢字王へ一歩前進です。" : "読みと解説を復習して、さらに上の記録を目指そう。"}</p>
+      <div class="kanji-result-grid">
+        <div><span>正解</span><strong>${result.correct}<small>/${result.total}</small></strong></div>
+        <div><span>正答率</span><strong>${result.rate}<small>%</small></strong></div>
+        <div><span>最大連続</span><strong>${result.maxStreak}<small>問</small></strong></div>
+        <div><span>自己ベスト</span><strong>${state.kanjiBest.score.toLocaleString()}<small>点</small></strong></div>
+      </div>
+      <div class="quiz-actions kanji-result-actions">
+        <button class="secondary-button" data-action="navigate" data-view="home">ホームへ</button>
+        <button class="primary-button" data-action="navigate" data-view="kanji">設定を変える</button>
+        <button class="kanji-start-button compact" data-action="start-kanji-game"><span>もう一度</span><i>→</i></button>
+      </div>
+    </section>
+  `;
+}
+
 function quizMarkup() {
   const question = state.quizQuestions[state.questionIndex];
   if (!question) return '<p class="empty-state">問題を準備できませんでした。</p>';
@@ -468,6 +674,7 @@ function quizMarkup() {
   const answerNormalized = normalizeAnswer(question.answer);
   const isCorrect = state.answered && responseNormalized === answerNormalized;
   const choices = question.type === "truefalse" ? ["○", "×"] : (question.choices || []);
+  const imageUrl = normalizeImageUrl(question.imageUrl);
 
   return `
     <section class="quiz-stage">
@@ -478,6 +685,13 @@ function quizMarkup() {
       </div>
       <article class="quiz-card">
         <div class="question-meta"><span>${escapeHtml(question.category)}・難易度 ${"★".repeat(Number(question.difficulty) || 1)}</span><span>QUESTION ${state.questionIndex + 1}</span></div>
+        ${imageUrl ? `
+          <figure class="question-image-wrap">
+            <img class="question-image" src="${escapeHtml(imageUrl)}" alt="問題画像：${escapeHtml(question.prompt)}" loading="eager" decoding="async" referrerpolicy="no-referrer">
+            <figcaption>画像を見て答えてください</figcaption>
+            <p class="question-image-error" role="status">画像を読み込めませんでした。</p>
+          </figure>
+        ` : ""}
         <h1 class="question-text">${escapeHtml(question.prompt)}</h1>
         ${question.type === "text"
           ? `<form id="answer-form"><input class="text-answer" name="answer" value="${escapeHtml(state.response)}" placeholder="答えを入力" autocomplete="off" ${state.answered ? "disabled" : ""}></form>`
@@ -621,6 +835,7 @@ function adminMarkup() {
           </div>
           <div class="field"><label>分類</label><input name="category" required placeholder="例：漢字"></div>
           <div class="field"><label>問題文</label><textarea name="prompt" required maxlength="500"></textarea></div>
+          <div class="field"><label>問題画像URL（任意・HTTPS）</label><input name="imageUrl" type="url" inputmode="url" maxlength="2048" placeholder="https://example.com/question-image.jpg"><small>画像を表示する問題だけ入力します。公開状態で直接表示できる画像URLを指定してください。</small></div>
           <div class="field"><label>選択肢（択一のみ・カンマ区切り）</label><input name="choices" placeholder="答え1, 答え2, 答え3, 答え4"></div>
           <div class="form-grid two">
             <div class="field"><label>正解</label><input name="answer" required maxlength="150"></div>
@@ -660,6 +875,9 @@ function adminMarkup() {
 function pageMarkup() {
   const pages = {
     home: homeMarkup,
+    kanji: kanjiSetupMarkup,
+    "kanji-game": kanjiGameMarkup,
+    "kanji-result": kanjiResultMarkup,
     subject: subjectMarkup,
     settings: settingsMarkup,
     quiz: quizMarkup,
@@ -685,6 +903,10 @@ function render() {
     </div>
   `;
   if (state.view === "quiz" && state.timerEnabled && !state.answered) startTimer();
+  if (state.view === "kanji-game" && !state.kanjiAnswered) {
+    startKanjiTimer();
+    window.requestAnimationFrame(() => document.getElementById("kanji-answer")?.focus());
+  }
 }
 
 function navigate(view) {
@@ -810,6 +1032,143 @@ function finishQuiz() {
   navigate("result");
 }
 
+function startKanjiGame() {
+  let pool = getKanjiReadingQuestions(state.kanjiDifficulty);
+  if (!pool.length && state.kanjiDifficulty) {
+    state.kanjiDifficulty = 0;
+    pool = getKanjiReadingQuestions();
+    showToast("選んだ難易度に問題がないため、すべての難易度から出題します。");
+  }
+  if (!pool.length) {
+    showToast("公開中の漢字読み問題がありません。");
+    return;
+  }
+  state.kanjiQuestions = shuffle(pool).slice(0, Math.min(state.kanjiQuestionCount, pool.length));
+  state.kanjiIndex = 0;
+  state.kanjiResponse = "";
+  state.kanjiAnswered = false;
+  state.kanjiTimeLeft = 15;
+  state.kanjiLives = 3;
+  state.kanjiScore = 0;
+  state.kanjiStreak = 0;
+  state.kanjiMaxStreak = 0;
+  state.kanjiResults = [];
+  state.kanjiLatestResult = null;
+  navigate("kanji-game");
+}
+
+function submitKanjiAnswer(value) {
+  if (state.kanjiAnswered) return;
+  const question = state.kanjiQuestions[state.kanjiIndex];
+  if (!question) return;
+  window.clearInterval(timerId);
+  state.kanjiResponse = String(value ?? "").trim();
+  const correct = isKanjiReadingCorrect(state.kanjiResponse, question);
+  let earned = 0;
+  if (correct) {
+    state.kanjiStreak += 1;
+    state.kanjiMaxStreak = Math.max(state.kanjiMaxStreak, state.kanjiStreak);
+    earned = (Number(question.difficulty) || 1) * 100 + state.kanjiTimeLeft * 10 + Math.max(0, state.kanjiStreak - 1) * 25;
+    state.kanjiScore += earned;
+  } else {
+    state.kanjiLives = Math.max(0, state.kanjiLives - 1);
+    state.kanjiStreak = 0;
+  }
+  state.kanjiResults.push({
+    questionId: question.id,
+    response: state.kanjiResponse || "未回答",
+    correct,
+    earned,
+  });
+  state.kanjiAnswered = true;
+  render();
+}
+
+function nextKanjiQuestion() {
+  if (!state.kanjiAnswered) return;
+  if (state.kanjiLives <= 0 || state.kanjiIndex + 1 >= state.kanjiQuestions.length) {
+    finishKanjiGame();
+    return;
+  }
+  state.kanjiIndex += 1;
+  state.kanjiResponse = "";
+  state.kanjiAnswered = false;
+  state.kanjiTimeLeft = 15;
+  render();
+}
+
+function startKanjiTimer() {
+  timerId = window.setInterval(() => {
+    state.kanjiTimeLeft -= 1;
+    const timer = document.querySelector(".kanji-timer");
+    const timerNumber = timer?.querySelector("strong");
+    const timerBar = timer?.querySelector(".kanji-timer-bar");
+    if (timer) timer.setAttribute("aria-label", `残り時間 ${Math.max(0, state.kanjiTimeLeft)}秒`);
+    if (timerNumber) timerNumber.textContent = String(Math.max(0, state.kanjiTimeLeft));
+    if (timerBar) timerBar.style.width = `${Math.max(0, (state.kanjiTimeLeft / 15) * 100)}%`;
+    if (state.kanjiTimeLeft <= 0) {
+      window.clearInterval(timerId);
+      submitKanjiAnswer("");
+    }
+  }, 1000);
+}
+
+function finishKanjiGame() {
+  const correct = state.kanjiResults.filter((result) => result.correct).length;
+  const total = state.kanjiResults.length;
+  const rate = total ? Math.round((correct / total) * 100) : 0;
+  const previousBest = Number(state.kanjiBest.score) || 0;
+  const isBest = state.kanjiScore > previousBest;
+  if (isBest || state.kanjiMaxStreak > (Number(state.kanjiBest.streak) || 0)) {
+    state.kanjiBest = {
+      score: Math.max(previousBest, state.kanjiScore),
+      streak: Math.max(Number(state.kanjiBest.streak) || 0, state.kanjiMaxStreak),
+    };
+    writeStorage(STORAGE.kanjiBest, state.kanjiBest);
+  }
+  state.kanjiLatestResult = {
+    score: state.kanjiScore,
+    correct,
+    total,
+    rate,
+    maxStreak: state.kanjiMaxStreak,
+    isBest,
+  };
+
+  const xp = correct * 25 + state.kanjiMaxStreak * 5;
+  const now = new Date().toISOString();
+  const attempt = {
+    id: `kanji-${Date.now()}`,
+    subjectId: "japanese",
+    score: correct,
+    total,
+    rate,
+    xp,
+    createdAt: now,
+  };
+  state.attempts = [attempt, ...state.attempts].slice(0, 100);
+  state.stats.totalXp += xp;
+  state.stats.totalAnswers += total;
+  state.stats.correctAnswers += correct;
+  state.stats.streak = calculateStreak(state.attempts);
+  writeStorage(STORAGE.attempts, state.attempts);
+  writeStorage(STORAGE.stats, state.stats);
+  if (state.connected) {
+    postAction({
+      action: "recordAttempt",
+      clientId: state.clientId,
+      nickname: state.user.name,
+      subjectId: "japanese",
+      score: correct,
+      total,
+      correctRate: rate,
+      xpEarned: xp,
+      answers: state.kanjiResults,
+    }).catch((error) => console.warn(error));
+  }
+  navigate("kanji-result");
+}
+
 function calculateStreak(attempts) {
   const dayKeys = [...new Set(attempts.map((attempt) => localDateKey(new Date(attempt.createdAt))))].sort().reverse();
   if (!dayKeys.length) return 0;
@@ -893,6 +1252,19 @@ app.addEventListener("click", (event) => {
   if (!button) return;
   const { action } = button.dataset;
   if (action === "navigate") navigate(button.dataset.view);
+  if (action === "set-kanji-difficulty") {
+    state.kanjiDifficulty = Number(button.dataset.value);
+    render();
+  }
+  if (action === "set-kanji-count") {
+    state.kanjiQuestionCount = Number(button.dataset.value);
+    render();
+  }
+  if (action === "start-kanji-game") startKanjiGame();
+  if (action === "next-kanji-question") nextKanjiQuestion();
+  if (action === "exit-kanji-game") {
+    if (window.confirm("漢字キングを終了してホームへ戻りますか？")) navigate("home");
+  }
   if (action === "select-subject") selectSubject(button.dataset.subject);
   if (action === "quick-quiz") {
     state.selectedSubjectId = null;
@@ -964,6 +1336,12 @@ app.addEventListener("submit", (event) => {
     if (!answer) { showToast("答えを入力してください。"); return; }
     submitAnswer(answer);
   }
+  if (event.target.id === "kanji-answer-form") {
+    const form = new FormData(event.target);
+    const answer = String(form.get("answer") || "").trim();
+    if (!answer) { showToast("読みを入力してください。"); return; }
+    submitKanjiAnswer(answer);
+  }
   if (event.target.id === "subject-form") {
     if (state.connected && !requireAdminKey()) return;
     const form = new FormData(event.target);
@@ -989,12 +1367,19 @@ app.addEventListener("submit", (event) => {
     const type = String(form.get("type") || "choice");
     let choices = String(form.get("choices") || "").split(/[,、\n]/).map((item) => item.trim()).filter(Boolean);
     if (type === "truefalse") choices = ["○", "×"];
+    const rawImageUrl = String(form.get("imageUrl") || "").trim();
+    const imageUrl = normalizeImageUrl(rawImageUrl);
+    if (rawImageUrl && !imageUrl) {
+      showToast("画像URLは https:// で始まる有効なURLを入力してください。");
+      return;
+    }
     const question = {
       id: `q-${Date.now()}`,
       subjectId: String(form.get("subjectId") || ""),
       category: String(form.get("category") || "").trim(),
       type,
       prompt: String(form.get("prompt") || "").trim(),
+      imageUrl,
       choices,
       answer: String(form.get("answer") || "").trim(),
       explanation: String(form.get("explanation") || "").trim(),
@@ -1011,6 +1396,11 @@ app.addEventListener("submit", (event) => {
     adminPost({ action: "adminAddQuestion", question }, "問題を追加しました");
   }
 });
+
+document.addEventListener("error", (event) => {
+  if (!(event.target instanceof HTMLImageElement) || !event.target.matches(".question-image")) return;
+  event.target.closest(".question-image-wrap")?.classList.add("load-error");
+}, true);
 
 render();
 loadBootstrap();
