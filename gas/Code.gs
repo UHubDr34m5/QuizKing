@@ -19,7 +19,7 @@ var QUIZKING = {
   },
   headers: {
     subjects: ["id", "name", "icon", "color", "description", "categoriesJson", "sortOrder", "isPublished", "updatedAt"],
-    questions: ["id", "subjectId", "category", "type", "prompt", "choicesJson", "answer", "explanation", "difficulty", "sortOrder", "isPublished", "updatedAt"],
+    questions: ["id", "subjectId", "category", "type", "prompt", "choicesJson", "answer", "explanation", "difficulty", "sortOrder", "isPublished", "updatedAt", "imageUrl"],
     attempts: ["id", "clientId", "nickname", "subjectId", "score", "total", "correctRate", "xpEarned", "answersJson", "createdAt"]
   }
 };
@@ -238,6 +238,7 @@ function getPublicQuestions_(spreadsheet) {
         category: cleanString_(row.category, 80),
         type: type,
         prompt: cleanString_(row.prompt, 1000),
+        imageUrl: validImageUrl_(row.imageUrl),
         choices: type === "truefalse" ? ["○", "×"] : parseJsonArray_(row.choicesJson),
         answer: cleanString_(row.answer, 300),
         explanation: cleanString_(row.explanation, 1000),
@@ -321,16 +322,22 @@ function adminAddQuestion_(rawQuestion) {
   var subjectId = cleanId_(question.subjectId);
   var category = cleanString_(question.category, 80);
   var prompt = cleanString_(question.prompt, 1000);
+  var rawImageUrl = cleanString_(question.imageUrl, 2048);
+  var imageUrl = validImageUrl_(rawImageUrl);
   var answer = cleanString_(question.answer, 300);
   var explanation = cleanString_(question.explanation, 1000);
   var type = validQuestionType_(question.type);
   if (!subjectId || !category || !prompt || !answer || !explanation) {
     throw new Error("問題の必須項目が不足しています。");
   }
+  if (rawImageUrl && !imageUrl) {
+    throw new Error("画像URLはhttps://で始まる有効なURLを指定してください。");
+  }
 
+  var isMulti = type === "multi" || /^【多答】/.test(prompt);
   var choices = type === "truefalse"
     ? ["○", "×"]
-    : normalizeStringArray_(question.choices, 10, 200);
+    : normalizeStringArray_(question.choices, isMulti ? 100 : 10, 200);
   if (type === "choice" && choices.length < 2) {
     throw new Error("択一問題には2つ以上の選択肢が必要です。");
   }
@@ -348,6 +355,7 @@ function adminAddQuestion_(rawQuestion) {
     category: category,
     type: type,
     prompt: prompt,
+    imageUrl: imageUrl,
     choicesJson: JSON.stringify(choices),
     answer: answer,
     explanation: explanation,
@@ -358,6 +366,13 @@ function adminAddQuestion_(rawQuestion) {
   };
 
   withDocumentLock_(function () {
+    var questionHeaders = getSheetHeaders_(questionsSheet);
+    var publishStatusIndex = questionHeaders.indexOf("公開状態");
+    if (publishStatusIndex >= 0) {
+      var nextRowNumber = questionsSheet.getLastRow() + 1;
+      row.isPublished = "=" + columnLabel_(publishStatusIndex + 1) + nextRowNumber + "=\"公開\"";
+      row["公開状態"] = "公開";
+    }
     appendObjects_(questionsSheet, QUIZKING.headers.questions, [row]);
     addCategoryIfMissing_(subjectsSheet, subjectId, category);
   });
@@ -565,9 +580,13 @@ function ensureSheet_(spreadsheet, name, headers) {
   if (sheet.getLastRow() === 0) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   } else {
-    var currentHeaders = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
-    headers.forEach(function (header, index) {
-      if (!currentHeaders[index]) sheet.getRange(1, index + 1).setValue(header);
+    var lastColumn = Math.max(1, sheet.getLastColumn());
+    var currentHeaders = sheet.getRange(1, 1, 1, lastColumn).getValues()[0]
+      .map(function (header) { return cleanString_(header, 100); });
+    headers.forEach(function (header) {
+      if (currentHeaders.indexOf(header) >= 0) return;
+      currentHeaders.push(header);
+      sheet.getRange(1, currentHeaders.length).setValue(header);
     });
   }
   return sheet;
@@ -580,7 +599,7 @@ function formatWorkbook_(spreadsheet) {
     [QUIZKING.sheets.attempts, QUIZKING.headers.attempts.length]
   ].forEach(function (definition) {
     var sheet = spreadsheet.getSheetByName(definition[0]);
-    var lastColumn = definition[1];
+    var lastColumn = Math.max(definition[1], sheet.getLastColumn());
     sheet.setFrozenRows(1);
     sheet.getRange(1, 1, 1, lastColumn)
       .setBackground("#111a48")
@@ -588,29 +607,61 @@ function formatWorkbook_(spreadsheet) {
       .setFontWeight("bold");
     sheet.autoResizeColumns(1, lastColumn);
     if (sheet.getMaxColumns() >= 5) sheet.setColumnWidth(5, 420);
+    var imageColumn = getSheetHeaders_(sheet).indexOf("imageUrl") + 1;
+    if (imageColumn > 0) sheet.setColumnWidth(imageColumn, 360);
   });
 }
 
 function appendObjects_(sheet, headers, objects) {
   if (!objects || !objects.length) return;
+  ensureHeaders_(sheet, headers);
+  var sheetHeaders = getSheetHeaders_(sheet);
   var rows = objects.map(function (object) {
-    return headers.map(function (header) {
+    return sheetHeaders.map(function (header) {
       return object[header] === undefined ? "" : object[header];
     });
   });
-  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, sheetHeaders.length).setValues(rows);
 }
 
 function readObjects_(sheet, headers) {
   if (!sheet || sheet.getLastRow() <= 1) return [];
-  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+  var sheetHeaders = getSheetHeaders_(sheet);
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheetHeaders.length).getValues();
   return values.map(function (row) {
     var object = {};
-    headers.forEach(function (header, index) {
-      object[header] = row[index];
+    headers.forEach(function (header) {
+      var index = sheetHeaders.indexOf(header);
+      object[header] = index >= 0 ? row[index] : "";
     });
     return object;
   });
+}
+
+function ensureHeaders_(sheet, headers) {
+  var sheetHeaders = getSheetHeaders_(sheet);
+  headers.forEach(function (header) {
+    if (sheetHeaders.indexOf(header) >= 0) return;
+    sheetHeaders.push(header);
+    sheet.getRange(1, sheetHeaders.length).setValue(header);
+  });
+}
+
+function getSheetHeaders_(sheet) {
+  var lastColumn = Math.max(1, sheet.getLastColumn());
+  return sheet.getRange(1, 1, 1, lastColumn).getValues()[0]
+    .map(function (header) { return cleanString_(header, 100); });
+}
+
+function columnLabel_(columnNumber) {
+  var label = "";
+  var value = Math.max(1, Number(columnNumber) || 1);
+  while (value > 0) {
+    value -= 1;
+    label = String.fromCharCode(65 + value % 26) + label;
+    value = Math.floor(value / 26);
+  }
+  return label;
 }
 
 function readObjectsWithRows_(sheet, headers) {
@@ -679,12 +730,17 @@ function cleanId_(value) {
 
 function validQuestionType_(value) {
   var type = cleanString_(value, 20);
-  return ["choice", "text", "truefalse"].indexOf(type) >= 0 ? type : "text";
+  return ["choice", "text", "truefalse", "multi"].indexOf(type) >= 0 ? type : "text";
 }
 
 function validColor_(value) {
   var color = cleanString_(value, 20);
   return /^#[0-9a-fA-F]{6}$/.test(color) ? color : "#20e0ff";
+}
+
+function validImageUrl_(value) {
+  var url = cleanString_(value, 2048);
+  return /^https:\/\/[^\s<>"']+$/i.test(url) ? url : "";
 }
 
 function normalizeStringArray_(value, maxItems, maxLength) {
@@ -777,11 +833,11 @@ function seedSubjects_() {
   var now = new Date();
   var subjects = [
     ["japanese", "国語", "本", "#b7f43a", "ことばの力を磨き、表現と読解の土台をつくろう。", ["漢字", "四字熟語", "類義語・対義語", "諺", "故事成語", "文法", "文学"]],
-    ["math", "数学", "∑", "#20e0ff", "計算から数学雑学まで、筋道立てて考える力を育てよう。", ["計算", "数と式", "方程式", "関数", "図形", "確率・統計", "数学史・数学雑学"]],
+    ["math", "数学", "∑", "#20e0ff", "計算から数学雑学まで、筋道立てて考える力を育てよう。", ["計算", "数と式", "方程式", "関数", "図形", "確率・統計", "数学史・数学雑学", "素因数分解"]],
     ["english", "英語", "ABC", "#9a70ff", "単語・文法・会話表現から英語圏の文化まで学ぼう。", ["英単語", "英熟語", "文法", "発音", "会話表現", "英語圏文化"]],
     ["science", "理科", "⚗", "#b7f43a", "自然の「なぜ？」を物理・化学・生物・地学から解き明かそう。", ["物理", "化学", "生物", "地学", "科学史", "身近な科学"]],
     ["social", "社会", "◎", "#20e0ff", "歴史・地理・政治・経済をつなげて世界を理解しよう。", ["日本史", "世界史", "地理", "政治", "経済", "時事", "世界遺産"]],
-    ["pe", "体育", "●", "#ff6f91", "競技のルール、記録、歴史からスポーツをもっと楽しもう。", ["球技", "陸上", "水泳", "体操", "武道", "ルール・記録", "スポーツ史"]],
+    ["pe", "体育", "●", "#ff6f91", "競技のルール、記録、歴史からスポーツをもっと楽しもう。", ["球技", "陸上", "水泳", "体操", "武道", "ルール・記録", "スポーツ史", "オリンピック"]],
     ["health", "保健", "＋", "#57d6a5", "体と心を守るために、正しい健康知識を身につけよう。", ["人体", "病気・予防", "応急手当", "心の健康", "栄養", "生活習慣"]],
     ["informatics", "情報", "</>", "#20e0ff", "コンピュータ、AI、情報モラルを実生活につなげよう。", ["コンピュータ", "ネットワーク", "プログラミング", "情報モラル", "AI", "データ活用"]],
     ["home", "家庭科", "⌂", "#ffb84d", "衣食住、家計、子育てに役立つ生活の知恵を学ぼう。", ["調理", "栄養", "被服", "住生活", "消費生活", "子育て"]],
@@ -790,8 +846,8 @@ function seedSubjects_() {
     ["calligraphy", "書道", "墨", "#d9c8ff", "書体、名筆、漢字の成り立ちから文字文化を味わおう。", ["楷書", "行書", "草書", "書道史", "漢字の成り立ち", "名筆"]],
     ["finance", "金融", "¥", "#ffd75a", "家計、税金、投資、保険を知り、お金と上手につき合おう。", ["家計", "貯蓄", "投資", "税金", "保険", "経済の仕組み", "詐欺対策"]],
     ["manners", "マナー", "礼", "#57d6a5", "相手を思いやる作法と言葉遣いを場面別に学ぼう。", ["食事", "冠婚葬祭", "ビジネス", "公共の場", "国際マナー", "言葉遣い"]],
-    ["culture", "一般教養", "知", "#7ea7ff", "法律、文化、哲学、発明など社会人にも役立つ知識を広げよう。", ["法律", "文化", "宗教", "哲学", "暦・単位", "発明・発見"]],
-    ["trivia", "雑学", "？", "#ff8f5a", "思わず誰かに話したくなる、身近で意外な知識を集めよう。", ["生き物", "食べ物", "乗り物", "言葉", "世界一・日本一", "企業・商品", "不思議"]]
+    ["culture", "一般教養", "知", "#7ea7ff", "法律、文化、哲学、発明など社会人にも役立つ知識を広げよう。", ["法律", "文化", "宗教", "哲学", "暦・単位", "発明・発見", "映画", "お笑い"]],
+    ["trivia", "雑学", "？", "#ff8f5a", "思わず誰かに話したくなる、身近で意外な知識を集めよう。", ["生き物", "食べ物", "乗り物", "言葉", "世界一・日本一", "企業・商品", "不思議", "アレの名前"]]
   ];
   return subjects.map(function (item, index) {
     return {
@@ -840,6 +896,7 @@ function seedQuestions_() {
       category: item[2],
       type: item[3],
       prompt: item[4],
+      imageUrl: "",
       choicesJson: JSON.stringify(item[5]),
       answer: item[6],
       explanation: item[7],
