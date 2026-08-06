@@ -2429,6 +2429,12 @@ th {
 .trivia-library-grid article > span { color: rgba(32, 224, 255, 0.18); font-size: 48px; font-weight: 900; position: absolute; right: 17px; top: 8px; }
 .trivia-library-grid small { color: var(--cyan); font-size: 10px; font-weight: 900; letter-spacing: 0.13em; }
 .trivia-library-grid p { font-size: 15px; line-height: 1.9; margin: 38px 0 0; }
+.trivia-library-grid img { border-radius: 14px; height: 150px; margin-bottom: 17px; object-fit: cover; width: 100%; }
+.trivia-library-grid article:has(img) p { margin-top: 22px; }
+.trivia-admin-card { align-items: center; display: grid; gap: 28px; grid-template-columns: 1fr auto; }
+.trivia-schema-list { color: var(--muted); font-size: 12px; line-height: 1.8; margin: 14px 0 0; padding-left: 20px; }
+.trivia-schema-list b, .trivia-schema-list code { color: var(--cyan); }
+.sheet-edit-link { text-decoration: none; white-space: nowrap; }
 
 .multi-badge {
   background: rgba(183, 244, 58, 0.12);
@@ -2565,4 +2571,5 @@ th {
   .prime-pad { grid-template-columns: repeat(4, 1fr); }
   .prime-perfect { grid-template-columns: 1fr; text-align: center; }
   .prime-result-grid { grid-template-columns: repeat(2, 1fr); }
+  .trivia-admin-card { grid-template-columns: 1fr; }
 }
