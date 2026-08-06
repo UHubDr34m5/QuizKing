@@ -5,6 +5,7 @@
  * 例: https://script.google.com/macros/s/AKfycb.../exec
  */
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwRmGAlg181VIcwnXfeiZb9fNNQcZOdQVAAXEbb0q7DtoQ4c4BP8ak29voYo0X-ul5Q/exec";
+const QUIZKING_DATABASE_URL = "https://docs.google.com/spreadsheets/d/1TSx3kUyjb23L3vYFEcObURdQQ-MHFLpZEdm8O_za5Sw/edit#gid=510521834";
 const REFERENCE_DATA = window.QUIZKING_REFERENCE_DATA || { olympics: {}, movies: {}, comedy: {}, trivia: [] };
 
 const SUBJECTS_FALLBACK = [
@@ -195,6 +196,29 @@ const MULTI_PREFIX = "【多答】";
 
 function isMultiQuestion(question) {
   return question?.type === "multi" || String(question?.prompt || "").trim().startsWith(MULTI_PREFIX);
+}
+
+function isReadingTrivia(question) {
+  return question?.subjectId === "trivia" && question?.category === "読む雑学";
+}
+
+function getTriviaLibraryFacts() {
+  const databaseFacts = state.questions
+    .filter(isReadingTrivia)
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0))
+    .map((question) => ({
+      id: question.id,
+      category: question.choices?.[0] || "雑学",
+      fact: displayPrompt(question),
+      imageUrl: normalizeImageUrl(question.imageUrl),
+    }));
+  if (state.connected || databaseFacts.length) return databaseFacts;
+  return (REFERENCE_DATA.trivia || []).map(([category, fact], index) => ({
+    id: `fallback-trivia-${index + 1}`,
+    category,
+    fact,
+    imageUrl: "",
+  }));
 }
 
 function displayPrompt(question) {
@@ -681,10 +705,10 @@ function referenceMarkup() {
 }
 
 function triviaLibraryMarkup() {
-  const facts = REFERENCE_DATA.trivia || [];
+  const facts = getTriviaLibraryFacts();
   return `
     <section class="page-head"><button class="back-button" data-action="navigate" data-view="subject">← 雑学へ戻る</button><p class="section-kicker">TRIVIA LIBRARY</p><h1 class="page-title">読む雑学</h1><p class="page-description">正解・不正解はありません。気になるカードをめくるように、知識を拾っていこう。</p></section>
-    <div class="trivia-library-grid">${facts.map(([category, fact], index) => `<article><span>${String(index + 1).padStart(2, "0")}</span><small>${escapeHtml(category)}</small><p>${escapeHtml(fact)}</p></article>`).join("")}</div>
+    ${facts.length ? `<div class="trivia-library-grid">${facts.map((item, index) => `<article>${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.category)}の雑学画像" loading="lazy" referrerpolicy="no-referrer">` : ""}<span>${String(index + 1).padStart(2, "0")}</span><small>${escapeHtml(item.category)}</small><p>${escapeHtml(item.fact)}</p></article>`).join("")}</div>` : '<p class="empty-state">公開中の「読む雑学」はまだありません。</p>'}
   `;
 }
 
@@ -757,7 +781,7 @@ function subjectMarkup() {
   const subject = state.subjects.find((item) => item.id === state.selectedSubjectId);
   if (!subject) return homeMarkup();
   const questionCounts = state.questions.reduce((map, question) => {
-    if (question.subjectId === subject.id) map[question.category] = (map[question.category] || 0) + 1;
+    if (question.subjectId === subject.id && !isReadingTrivia(question)) map[question.category] = (map[question.category] || 0) + 1;
     return map;
   }, {});
   return `
@@ -770,7 +794,7 @@ function subjectMarkup() {
     ${subjectFeatureMarkup(subject.id)}
     <div class="category-grid">
       <button class="category-card" data-action="select-category" data-category="すべて">
-        <strong>全分類</strong><span>${state.questions.filter((question) => question.subjectId === subject.id).length}問を横断</span><i>→</i>
+        <strong>全分類</strong><span>${state.questions.filter((question) => question.subjectId === subject.id && !isReadingTrivia(question)).length}問を横断</span><i>→</i>
       </button>
       ${subject.categories.map((category) => `
         <button class="category-card" data-action="select-category" data-category="${escapeHtml(category)}">
@@ -788,7 +812,7 @@ function settingsMarkup() {
     const subjectMatch = !state.selectedSubjectId || question.subjectId === state.selectedSubjectId;
     const categoryMatch = state.selectedCategory === "すべて" || question.category === state.selectedCategory;
     const difficultyMatch = state.difficulty === 0 || Number(question.difficulty) === state.difficulty;
-    return subjectMatch && categoryMatch && difficultyMatch && questionMatchesMode(question);
+    return !isReadingTrivia(question) && subjectMatch && categoryMatch && difficultyMatch && questionMatchesMode(question);
   });
   const countOptions = state.answerMode === "multi" ? [1, 3, 5, 10] : [5, 10, 20, 30];
   if (!countOptions.includes(state.questionCount)) state.questionCount = countOptions[0];
@@ -1143,6 +1167,15 @@ function adminMarkup() {
           <button class="primary-button" type="submit">問題を追加</button>
         </form>
       </section>
+      <section class="admin-card full trivia-admin-card">
+        <div>
+          <p class="section-kicker">TRIVIA LIBRARY</p>
+          <h2>「読む雑学」を追加・削除</h2>
+          <p class="admin-note">データベースの「Questions」シートで、分類が「読む雑学」の行を編集します。新規追加は既存行を複製してIDと本文を変更。削除は行を削除するか、「非公開」にしてください。</p>
+          <ul class="trivia-schema-list"><li><b>prompt</b>：表示する雑学本文</li><li><b>choicesJson</b>：カードの分類（例：<code>["科学"]</code>）</li><li><b>imageUrl</b>：任意の画像URL</li><li><b>公開状態</b>：「公開」で掲載、「非公開」で非表示</li></ul>
+        </div>
+        <a class="secondary-button sheet-edit-link" href="${QUIZKING_DATABASE_URL}" target="_blank" rel="noopener noreferrer">Questionsシートを開く ↗</a>
+      </section>
       <section class="admin-card">
         <h2>分野の並び替え</h2>
         <div class="sortable-list">
@@ -1232,7 +1265,7 @@ function buildQuiz() {
     const categoryMatch = state.selectedCategory === "すべて" || question.category === state.selectedCategory;
     const modeMatch = questionMatchesMode(question);
     const difficultyMatch = state.difficulty === 0 || Number(question.difficulty) === state.difficulty;
-    return subjectMatch && categoryMatch && modeMatch && difficultyMatch;
+    return !isReadingTrivia(question) && subjectMatch && categoryMatch && modeMatch && difficultyMatch;
   });
 
   if (!pool.length) {
