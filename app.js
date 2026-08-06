@@ -5,14 +5,15 @@
  * 例: https://script.google.com/macros/s/AKfycb.../exec
  */
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwRmGAlg181VIcwnXfeiZb9fNNQcZOdQVAAXEbb0q7DtoQ4c4BP8ak29voYo0X-ul5Q/exec";
+const REFERENCE_DATA = window.QUIZKING_REFERENCE_DATA || { olympics: {}, movies: {}, comedy: {}, trivia: [] };
 
 const SUBJECTS_FALLBACK = [
   { id: "japanese", name: "国語", icon: "本", color: "#b7f43a", description: "ことばの力を磨き、表現と読解の土台をつくろう。", categories: ["漢字", "四字熟語", "類義語・対義語", "諺", "故事成語", "文法", "文学"] },
-  { id: "math", name: "数学", icon: "∑", color: "#20e0ff", description: "計算から数学雑学まで、筋道立てて考える力を育てよう。", categories: ["計算", "数と式", "方程式", "関数", "図形", "確率・統計", "数学史・数学雑学"] },
+  { id: "math", name: "数学", icon: "∑", color: "#20e0ff", description: "計算から数学雑学まで、筋道立てて考える力を育てよう。", categories: ["計算", "数と式", "方程式", "関数", "図形", "確率・統計", "数学史・数学雑学", "素因数分解"] },
   { id: "english", name: "英語", icon: "ABC", color: "#9a70ff", description: "単語・文法・会話表現から英語圏の文化まで学ぼう。", categories: ["英単語", "英熟語", "文法", "発音", "会話表現", "英語圏文化"] },
   { id: "science", name: "理科", icon: "⚗", color: "#b7f43a", description: "自然の「なぜ？」を物理・化学・生物・地学から解き明かそう。", categories: ["物理", "化学", "生物", "地学", "科学史", "身近な科学"] },
   { id: "social", name: "社会", icon: "◎", color: "#20e0ff", description: "歴史・地理・政治・経済をつなげて世界を理解しよう。", categories: ["日本史", "世界史", "地理", "政治", "経済", "時事", "世界遺産"] },
-  { id: "pe", name: "体育", icon: "●", color: "#ff6f91", description: "競技のルール、記録、歴史からスポーツをもっと楽しもう。", categories: ["球技", "陸上", "水泳", "体操", "武道", "ルール・記録", "スポーツ史"] },
+  { id: "pe", name: "体育", icon: "●", color: "#ff6f91", description: "競技のルール、記録、歴史からスポーツをもっと楽しもう。", categories: ["球技", "陸上", "水泳", "体操", "武道", "ルール・記録", "スポーツ史", "オリンピック"] },
   { id: "health", name: "保健", icon: "＋", color: "#57d6a5", description: "体と心を守るために、正しい健康知識を身につけよう。", categories: ["人体", "病気・予防", "応急手当", "心の健康", "栄養", "生活習慣"] },
   { id: "informatics", name: "情報", icon: "</>", color: "#20e0ff", description: "コンピュータ、AI、情報モラルを実生活につなげよう。", categories: ["コンピュータ", "ネットワーク", "プログラミング", "情報モラル", "AI", "データ活用"] },
   { id: "home", name: "家庭科", icon: "⌂", color: "#ffb84d", description: "衣食住、家計、子育てに役立つ生活の知恵を学ぼう。", categories: ["調理", "栄養", "被服", "住生活", "消費生活", "子育て"] },
@@ -21,8 +22,8 @@ const SUBJECTS_FALLBACK = [
   { id: "calligraphy", name: "書道", icon: "墨", color: "#d9c8ff", description: "書体、名筆、漢字の成り立ちから文字文化を味わおう。", categories: ["楷書", "行書", "草書", "書道史", "漢字の成り立ち", "名筆"] },
   { id: "finance", name: "金融", icon: "¥", color: "#ffd75a", description: "家計、税金、投資、保険を知り、お金と上手につき合おう。", categories: ["家計", "貯蓄", "投資", "税金", "保険", "経済の仕組み", "詐欺対策"] },
   { id: "manners", name: "マナー", icon: "礼", color: "#57d6a5", description: "相手を思いやる作法と言葉遣いを場面別に学ぼう。", categories: ["食事", "冠婚葬祭", "ビジネス", "公共の場", "国際マナー", "言葉遣い"] },
-  { id: "culture", name: "一般教養", icon: "知", color: "#7ea7ff", description: "法律、文化、哲学、発明など社会人にも役立つ知識を広げよう。", categories: ["法律", "文化", "宗教", "哲学", "暦・単位", "発明・発見"] },
-  { id: "trivia", name: "雑学", icon: "？", color: "#ff8f5a", description: "思わず誰かに話したくなる、身近で意外な知識を集めよう。", categories: ["生き物", "食べ物", "乗り物", "言葉", "世界一・日本一", "企業・商品", "不思議"] },
+  { id: "culture", name: "一般教養", icon: "知", color: "#7ea7ff", description: "法律、文化、哲学、発明など社会人にも役立つ知識を広げよう。", categories: ["法律", "文化", "宗教", "哲学", "暦・単位", "発明・発見", "映画", "お笑い"] },
+  { id: "trivia", name: "雑学", icon: "？", color: "#ff8f5a", description: "思わず誰かに話したくなる、身近で意外な知識を集めよう。", categories: ["生き物", "食べ物", "乗り物", "言葉", "世界一・日本一", "企業・商品", "不思議", "アレの名前"] },
 ];
 
 const QUESTIONS_FALLBACK = [
@@ -55,6 +56,7 @@ const STORAGE = {
   stats: "quizking_stats_v1",
   attempts: "quizking_attempts_v1",
   kanjiBest: "quizking_kanji_best_v1",
+  primeBest: "quizking_prime_best_v1",
 };
 
 const app = document.getElementById("app");
@@ -74,7 +76,7 @@ const state = {
   selectedCategory: "すべて",
   search: "",
   questionCount: 5,
-  answerMode: "mixed",
+  answerMode: "all",
   difficulty: 0,
   timerEnabled: false,
   shuffle: true,
@@ -103,6 +105,25 @@ const state = {
   kanjiResults: [],
   kanjiLatestResult: null,
   kanjiBest: readStorage(STORAGE.kanjiBest, { score: 0, streak: 0 }),
+  referenceSection: "olympics",
+  referenceTab: "summer",
+  primeDifficulty: "normal",
+  primeMode: "casual",
+  primeTargetCount: 10,
+  primeRound: 0,
+  primeCurrent: 1,
+  primeRemaining: 1,
+  primeFactors: [],
+  primeMisses: 0,
+  primeScore: 0,
+  primeStreak: 0,
+  primeMaxStreak: 0,
+  primeSolved: 0,
+  primeTimeLeft: 60,
+  primeStartedAt: null,
+  primeResults: [],
+  primeLatest: null,
+  primeBest: readStorage(STORAGE.primeBest, { score: 0, streak: 0 }),
 };
 
 if (state.user) {
@@ -168,6 +189,68 @@ function normalizeAnswer(value) {
     .toLowerCase()
     .replace(/[。、．.！!？?\s]/g, "")
     .replace(/^アレクサンダーグラハム/, "");
+}
+
+const MULTI_PREFIX = "【多答】";
+
+function isMultiQuestion(question) {
+  return question?.type === "multi" || String(question?.prompt || "").trim().startsWith(MULTI_PREFIX);
+}
+
+function displayPrompt(question) {
+  return String(question?.prompt || "").replace(/^\s*【多答】\s*/, "");
+}
+
+function multiExpectedGroups(question) {
+  const source = Array.isArray(question?.choices) && question.choices.length
+    ? question.choices
+    : String(question?.answer || "").split(/[\n、,，;；]+/);
+  return source
+    .map((item) => String(item).split("::").map((part) => part.trim()).filter(Boolean))
+    .filter((group) => group.length);
+}
+
+function splitMultiResponse(value) {
+  return String(value || "")
+    .split(/[\n、,，;；]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function evaluateMultiAnswer(value, question) {
+  const groups = multiExpectedGroups(question);
+  const responses = splitMultiResponse(value);
+  const unmatched = new Set(groups.map((_group, index) => index));
+  const extras = [];
+  const matched = [];
+  responses.forEach((response) => {
+    const normalized = normalizeAnswer(response);
+    const index = [...unmatched].find((groupIndex) => groups[groupIndex].some((candidate) => normalizeAnswer(candidate) === normalized));
+    if (index === undefined) extras.push(response);
+    else {
+      unmatched.delete(index);
+      matched.push(groups[index][0]);
+    }
+  });
+  const missing = [...unmatched].map((index) => groups[index][0]);
+  return {
+    correct: groups.length > 0 && missing.length === 0 && extras.length === 0,
+    matched,
+    missing,
+    extras,
+    expected: groups.map((group) => group[0]),
+  };
+}
+
+function questionMatchesMode(question, mode = state.answerMode) {
+  if (mode === "all" || mode === "mixed") return true;
+  if (mode === "multi") return isMultiQuestion(question);
+  if (mode === "single") return !isMultiQuestion(question);
+  return question.type === mode;
+}
+
+function questionTimeLimit(question) {
+  return isMultiQuestion(question) ? 180 : 20;
 }
 
 function normalizeReading(value) {
@@ -360,7 +443,7 @@ function headerMarkup() {
 }
 
 function mobileNavMarkup() {
-  if (["quiz", "kanji-game"].includes(state.view)) return "";
+  if (["quiz", "kanji-game", "prime-game"].includes(state.view)) return "";
   const navItems = [["home", "⌂", "ホーム"], ["kanji", "読", "漢字"], ["records", "▥", "記録"], ["ranking", "♛", "順位"]];
   return `
     <nav class="mobile-nav" aria-label="スマートフォン用メニュー">
@@ -477,6 +560,199 @@ function homeMarkup() {
   `;
 }
 
+const REFERENCE_LINKS = {
+  pe: [{ section: "olympics", eyebrow: "OLYMPIC ARCHIVE", title: "オリンピック資料室", text: "夏季・冬季の開催地、日本のメダル数、主な活躍選手を一覧で確認。", icon: "五輪" }],
+  culture: [
+    { section: "movies", eyebrow: "MOVIE ARCHIVE", title: "映画資料室", text: "興行収入・年別ヒット作・ジブリ・PIXARを年表で確認。", icon: "映" },
+    { section: "comedy", eyebrow: "COMEDY ARCHIVE", title: "お笑い資料室", text: "M-1・R-1・キングオブコントの歴代王者を一覧で確認。", icon: "笑" },
+  ],
+};
+
+function subjectFeatureMarkup(subjectId) {
+  const cards = [];
+  (REFERENCE_LINKS[subjectId] || []).forEach((item) => {
+    cards.push(`
+      <button class="feature-link-card" data-action="open-reference" data-section="${item.section}">
+        <span class="feature-link-icon">${item.icon}</span>
+        <span><small>${item.eyebrow}</small><strong>${item.title}</strong><em>${item.text}</em></span><i>→</i>
+      </button>
+    `);
+  });
+  if (subjectId === "trivia") {
+    cards.push(`
+      <button class="feature-link-card trivia-link" data-action="navigate" data-view="trivia-library">
+        <span class="feature-link-icon">豆</span>
+        <span><small>TRIVIA LIBRARY</small><strong>読む雑学ページ</strong><em>問題ではなく、短い雑学を気軽に読み進めるページです。</em></span><i>→</i>
+      </button>
+    `);
+  }
+  if (subjectId === "math") {
+    cards.push(`
+      <button class="feature-link-card prime-link" data-action="navigate" data-view="prime">
+        <span class="feature-link-icon">÷</span>
+        <span><small>PRIME FACTOR GAME</small><strong>素因数分解ウォール</strong><em>素数を選んで数字の壁を1まで崩そう。5段階の難易度に挑戦。</em></span><i>→</i>
+      </button>
+    `);
+  }
+  return cards.length ? `<div class="feature-link-grid">${cards.join("")}</div>` : "";
+}
+
+function referenceSourcesMarkup(data) {
+  return `
+    <footer class="reference-sources">
+      <strong>出典・更新基準</strong><span>${escapeHtml(data.asOf || "")}</span>
+      <ul>${(data.sources || []).map((source) => `<li><a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.label)} ↗</a></li>`).join("")}</ul>
+    </footer>
+  `;
+}
+
+function olympicsReferenceMarkup(data) {
+  const season = state.referenceTab === "winter" ? "winter" : "summer";
+  const rows = data[season] || [];
+  return `
+    <div class="reference-tabs" role="tablist">
+      ${[["summer", "夏季大会"], ["winter", "冬季大会"]].map(([value, label]) => `<button class="${season === value ? "active" : ""}" data-action="set-reference-tab" data-value="${value}">${label}</button>`).join("")}
+    </div>
+    <div class="reference-summary-grid">
+      <div><span>掲載大会</span><strong>${rows.length}</strong><small>中止大会を含む</small></div>
+      <div><span>日本の最多金</span><strong>${Math.max(0, ...rows.map((row) => row.medals?.[0] || 0))}</strong><small>1大会での獲得数</small></div>
+      <div><span>最新掲載</span><strong>${rows.at(-1)?.year || "—"}</strong><small>${escapeHtml(rows.at(-1)?.host || "")}</small></div>
+    </div>
+    <div class="table-wrap reference-table-wrap"><table class="reference-table">
+      <thead><tr><th>年</th><th>開催地</th><th>日本のメダル（金・銀・銅）</th><th>主な選手・競技</th></tr></thead>
+      <tbody>${rows.map((row) => `<tr class="${row.cancelled ? "cancelled" : ""}"><td><strong>${row.year}</strong></td><td>${escapeHtml(row.host)}</td><td>${row.medals ? `<span class="medal gold">${row.medals[0]}</span><span class="medal silver">${row.medals[1]}</span><span class="medal bronze">${row.medals[2]}</span>` : "—"}</td><td>${escapeHtml(row.stars)}</td></tr>`).join("")}</tbody>
+    </table></div>
+    ${referenceSourcesMarkup(data)}
+  `;
+}
+
+function moviesReferenceMarkup(data) {
+  const tabs = [["allTime", "歴代興収"], ["yearly", "年別ヒット"], ["ghibli", "ジブリ"], ["pixar", "PIXAR"]];
+  const tab = tabs.some(([value]) => value === state.referenceTab) ? state.referenceTab : "allTime";
+  let table = "";
+  if (tab === "allTime") {
+    table = `<table class="reference-table"><thead><tr><th>順位</th><th>作品</th><th>興行収入</th><th>公開年</th></tr></thead><tbody>${(data.allTime || []).map(([rank, title, gross, year]) => `<tr><td><strong>${rank}</strong></td><td>${escapeHtml(title)}</td><td>${gross.toFixed(1)}億円</td><td>${year}</td></tr>`).join("")}</tbody></table>`;
+  } else if (tab === "yearly") {
+    table = `<table class="reference-table"><thead><tr><th>年</th><th>年間総合1位作品</th><th>興行収入</th><th>その年のランキング</th></tr></thead><tbody>${(data.yearly || []).map(([year, title, gross]) => {
+      const sourceUrl = year >= 2023
+        ? `https://www.eiren.org/toukei/img/eiren_kosyu/${year === 2025 ? "data_current_2025" : `data_${year}`}.pdf`
+        : `https://www.eiren.org/toukei/${year}.html`;
+      return `<tr><td><strong>${year}</strong></td><td><span class="rank-one">1位</span>${escapeHtml(title)}</td><td>${gross.toFixed(1)}億円</td><td><a class="table-source-link" href="${sourceUrl}" target="_blank" rel="noopener noreferrer">映連の全順位 ↗</a></td></tr>`;
+    }).join("")}</tbody></table>`;
+  } else {
+    const label = tab === "ghibli" ? "スタジオジブリ" : "PIXAR";
+    table = `<table class="reference-table"><thead><tr><th>公開年</th><th>${label}長編作品</th></tr></thead><tbody>${(data[tab] || []).map(([year, title]) => `<tr><td><strong>${year}</strong></td><td>${escapeHtml(title)}</td></tr>`).join("")}</tbody></table>`;
+  }
+  return `
+    <div class="reference-tabs" role="tablist">${tabs.map(([value, label]) => `<button class="${tab === value ? "active" : ""}" data-action="set-reference-tab" data-value="${value}">${label}</button>`).join("")}</div>
+    <p class="reference-note">興行収入は日本国内。公開後の再集計などで数値・順位が変わることがあります。</p>
+    <div class="table-wrap reference-table-wrap">${table}</div>
+    ${referenceSourcesMarkup(data)}
+  `;
+}
+
+function comedyReferenceMarkup(data) {
+  const tabs = [["m1", "M-1"], ["r1", "R-1"], ["koc", "キングオブコント"]];
+  const tab = tabs.some(([value]) => value === state.referenceTab) ? state.referenceTab : "m1";
+  const label = tabs.find(([value]) => value === tab)?.[1] || "歴代王者";
+  return `
+    <div class="reference-tabs" role="tablist">${tabs.map(([value, tabLabel]) => `<button class="${tab === value ? "active" : ""}" data-action="set-reference-tab" data-value="${value}">${tabLabel}</button>`).join("")}</div>
+    <div class="champion-grid">${(data[tab] || []).map(([year, champion]) => `<article><span>${year}</span><strong>${escapeHtml(champion)}</strong></article>`).join("")}</div>
+    <p class="reference-note">${escapeHtml(label)}の大会が開催されなかった年は掲載していません。</p>
+    ${referenceSourcesMarkup(data)}
+  `;
+}
+
+function referenceMarkup() {
+  const configs = {
+    olympics: { kicker: "OLYMPIC ARCHIVE", title: "オリンピック資料室", description: "歴代大会の開催地、日本のメダル数、活躍した主な選手と競技を横断できます。", render: olympicsReferenceMarkup },
+    movies: { kicker: "MOVIE ARCHIVE", title: "映画資料室", description: "日本の興行データと、ジブリ・PIXARの作品年表をクイズ前の予習や復習に。", render: moviesReferenceMarkup },
+    comedy: { kicker: "COMEDY ARCHIVE", title: "お笑い資料室", description: "3つの賞レースの歴代王者を、開催年とともに確認できます。", render: comedyReferenceMarkup },
+  };
+  const config = configs[state.referenceSection] || configs.olympics;
+  const data = REFERENCE_DATA[state.referenceSection] || {};
+  return `
+    <section class="page-head reference-head">
+      <button class="back-button" data-action="navigate" data-view="${state.referenceSection === "olympics" ? "subject" : "subject"}">← 分類へ戻る</button>
+      <p class="section-kicker">${config.kicker}</p><h1 class="page-title">${config.title}</h1><p class="page-description">${config.description}</p>
+    </section>
+    <section class="reference-panel">${config.render(data)}</section>
+  `;
+}
+
+function triviaLibraryMarkup() {
+  const facts = REFERENCE_DATA.trivia || [];
+  return `
+    <section class="page-head"><button class="back-button" data-action="navigate" data-view="subject">← 雑学へ戻る</button><p class="section-kicker">TRIVIA LIBRARY</p><h1 class="page-title">読む雑学</h1><p class="page-description">正解・不正解はありません。気になるカードをめくるように、知識を拾っていこう。</p></section>
+    <div class="trivia-library-grid">${facts.map(([category, fact], index) => `<article><span>${String(index + 1).padStart(2, "0")}</span><small>${escapeHtml(category)}</small><p>${escapeHtml(fact)}</p></article>`).join("")}</div>
+  `;
+}
+
+const PRIME_LEVELS = {
+  easy: { label: "EASY", name: "初級", primes: [2, 3, 5, 7], minFactors: 2, maxFactors: 3, color: "#66e4b4" },
+  normal: { label: "NORMAL", name: "中級", primes: [2, 3, 5, 7, 11, 13], minFactors: 3, maxFactors: 4, color: "#54d9ff" },
+  hard: { label: "HARD", name: "上級", primes: [2, 3, 5, 7, 11, 13, 17, 19, 23], minFactors: 3, maxFactors: 5, color: "#9d7cff" },
+  expert: { label: "EXPERT", name: "達人", primes: [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37], minFactors: 4, maxFactors: 6, color: "#ff9a62" },
+  insane: { label: "INSANE", name: "極限", primes: [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53], minFactors: 5, maxFactors: 7, color: "#ff5f89" },
+};
+
+function primeSetupMarkup() {
+  const level = PRIME_LEVELS[state.primeDifficulty] || PRIME_LEVELS.normal;
+  return `
+    <section class="prime-setup" style="--prime-color:${level.color}">
+      <div class="prime-setup-copy">
+        <button class="back-button" data-action="navigate" data-view="subject">← 数学へ戻る</button>
+        <p class="section-kicker">PRIME FACTOR WALL</p><h1>素因数分解<br><span>ウォール</span></h1>
+        <p>数字を割り切れる素数を選び、残りが1になるまで壁を崩そう。暗算力と素数感覚を鍛えるQuizKingオリジナルゲームです。</p>
+        <div class="prime-rule-row"><span><b>1</b> 割れる素数を選ぶ</span><span><b>2</b> 商をさらに分解</span><span><b>3</b> 1で完全制覇</span></div>
+      </div>
+      <div class="prime-setup-panel">
+        <h2>ゲーム設定</h2>
+        <div class="setting-group"><label>難易度</label><div class="prime-levels">${Object.entries(PRIME_LEVELS).map(([key, item]) => `<button class="${state.primeDifficulty === key ? "active" : ""}" style="--level-color:${item.color}" data-action="set-prime-difficulty" data-value="${key}"><strong>${item.label}</strong><span>${item.name}・〜${item.primes.at(-1)}</span></button>`).join("")}</div></div>
+        <div class="setting-group"><label>モード</label><div class="segmented"><button class="${state.primeMode === "casual" ? "active" : ""}" data-action="set-prime-mode" data-value="casual">壁を10枚</button><button class="${state.primeMode === "timed" ? "active" : ""}" data-action="set-prime-mode" data-value="timed">60秒アタック</button></div></div>
+        <div class="prime-preview"><span>使用する素数</span><strong>${level.primes.join("・")}</strong><small>BEST ${Number(state.primeBest.score || 0).toLocaleString()} PTS</small></div>
+        <button class="prime-start-button" data-action="start-prime-game">壁を崩し始める <span>→</span></button>
+      </div>
+    </section>
+  `;
+}
+
+function primeGameMarkup() {
+  const level = PRIME_LEVELS[state.primeDifficulty] || PRIME_LEVELS.normal;
+  const solved = state.primeRemaining === 1;
+  const factorProduct = state.primeFactors.length ? state.primeFactors.join(" × ") : "素数を選択";
+  const progress = state.primeMode === "casual" ? (state.primeSolved / state.primeTargetCount) * 100 : (state.primeTimeLeft / 60) * 100;
+  return `
+    <section class="prime-game" style="--prime-color:${level.color}">
+      <div class="prime-game-topbar">
+        <button data-action="exit-prime-game">終了</button><div class="prime-game-progress"><span style="width:${Math.max(0, Math.min(100, progress))}%"></span></div>
+        <strong>${state.primeMode === "timed" ? `<span class="prime-clock">${state.primeTimeLeft}</span>秒` : `${state.primeSolved}/${state.primeTargetCount} WALLS`}</strong>
+      </div>
+      <div class="prime-scorebar"><span>SCORE <strong>${state.primeScore.toLocaleString()}</strong></span><span>STREAK <strong>${state.primeStreak}</strong></span><span>LEVEL <strong>${level.label}</strong></span></div>
+      <article class="number-wall ${solved ? "is-solved" : ""}">
+        <span class="wall-label">${solved ? "PERFECT FACTORIZATION" : "DIVIDE THE WALL"}</span>
+        <div class="wall-number">${state.primeRemaining.toLocaleString()}</div>
+        <div class="wall-equation">${state.primeCurrent.toLocaleString()} = ${escapeHtml(factorProduct)}${state.primeRemaining !== state.primeCurrent && state.primeRemaining !== 1 ? ` × ${state.primeRemaining}` : ""}</div>
+        ${state.primeMisses ? `<p class="prime-miss">割り切れない選択 ${state.primeMisses}回</p>` : ""}
+      </article>
+      ${solved ? `<div class="prime-perfect"><strong>PERFECT!</strong><span>${state.primeCurrent.toLocaleString()} = ${state.primeFactors.join(" × ")}</span><button data-action="next-prime-wall">次の壁 <i>→</i></button></div>` : `<div class="prime-pad" aria-label="素数を選ぶ">${level.primes.map((prime) => `<button data-action="choose-prime" data-value="${prime}"><span>${prime}</span><small>PRIME</small></button>`).join("")}</div>`}
+    </section>
+  `;
+}
+
+function primeResultMarkup() {
+  const result = state.primeLatest;
+  if (!result) return '<p class="empty-state">ゲーム結果がありません。</p>';
+  return `
+    <section class="prime-result">
+      <div class="prime-result-icon">÷</div><p class="section-kicker">FACTORIZATION COMPLETE</p><h1>${result.isBest ? "自己ベスト更新！" : "壁崩し完了！"}</h1>
+      <div class="prime-final-score">${result.score.toLocaleString()}<small> PTS</small></div>
+      <div class="prime-result-grid"><div><span>分解した壁</span><strong>${result.solved}</strong></div><div><span>最大連続</span><strong>${result.maxStreak}</strong></div><div><span>ミス</span><strong>${result.misses}</strong></div><div><span>所要時間</span><strong>${result.elapsed}秒</strong></div></div>
+      <div class="quiz-actions"><button class="secondary-button" data-action="navigate" data-view="home">ホームへ</button><button class="secondary-button" data-action="navigate" data-view="prime">設定を変える</button><button class="prime-start-button compact" data-action="start-prime-game">もう一度 <span>→</span></button></div>
+    </section>
+  `;
+}
+
 function subjectMarkup() {
   const subject = state.subjects.find((item) => item.id === state.selectedSubjectId);
   if (!subject) return homeMarkup();
@@ -491,6 +767,7 @@ function subjectMarkup() {
       <h1 class="page-title">${escapeHtml(subject.name)}</h1>
       <p class="page-description">${escapeHtml(subject.description)}</p>
     </section>
+    ${subjectFeatureMarkup(subject.id)}
     <div class="category-grid">
       <button class="category-card" data-action="select-category" data-category="すべて">
         <strong>全分類</strong><span>${state.questions.filter((question) => question.subjectId === subject.id).length}問を横断</span><i>→</i>
@@ -506,7 +783,18 @@ function subjectMarkup() {
 
 function settingsMarkup() {
   const subject = state.subjects.find((item) => item.id === state.selectedSubjectId);
-  const modeOptions = [["mixed", "ミックス"], ["choice", "択一"], ["text", "記述"], ["truefalse", "○×"]];
+  const modeOptions = [["all", "すべて"], ["single", "一問一答"], ["multi", "多答"]];
+  const availablePool = state.questions.filter((question) => {
+    const subjectMatch = !state.selectedSubjectId || question.subjectId === state.selectedSubjectId;
+    const categoryMatch = state.selectedCategory === "すべて" || question.category === state.selectedCategory;
+    const difficultyMatch = state.difficulty === 0 || Number(question.difficulty) === state.difficulty;
+    return subjectMatch && categoryMatch && difficultyMatch && questionMatchesMode(question);
+  });
+  const countOptions = state.answerMode === "multi" ? [1, 3, 5, 10] : [5, 10, 20, 30];
+  if (!countOptions.includes(state.questionCount)) state.questionCount = countOptions[0];
+  const resourceSection = state.selectedCategory === "オリンピック" ? "olympics"
+    : state.selectedCategory === "映画" ? "movies"
+      : state.selectedCategory === "お笑い" ? "comedy" : "";
   return `
     <section class="page-head">
       <button class="back-button" data-action="back-from-settings">← 戻る</button>
@@ -520,7 +808,7 @@ function settingsMarkup() {
         <div class="setting-group">
           <label>問題数</label>
           <div class="segmented">
-            ${[5, 10, 20, 30].map((count) => `<button class="${state.questionCount === count ? "active" : ""}" data-action="set-count" data-value="${count}">${count}問</button>`).join("")}
+            ${countOptions.map((count) => `<button class="${state.questionCount === count ? "active" : ""}" data-action="set-count" data-value="${count}">${count}問</button>`).join("")}
           </div>
         </div>
         <div class="setting-group">
@@ -536,15 +824,17 @@ function settingsMarkup() {
           </div>
         </div>
         <div class="setting-group">
-          <div class="toggle-row"><span>制限時間（1問20秒）</span><button class="switch ${state.timerEnabled ? "on" : ""}" data-action="toggle-timer" aria-pressed="${state.timerEnabled}"><span></span></button></div>
+          <div class="toggle-row"><span>制限時間（多答180秒／一問一答20秒）</span><button class="switch ${state.timerEnabled ? "on" : ""}" data-action="toggle-timer" aria-pressed="${state.timerEnabled}"><span></span></button></div>
           <div class="toggle-row"><span>問題をシャッフル</span><button class="switch ${state.shuffle ? "on" : ""}" data-action="toggle-shuffle" aria-pressed="${state.shuffle}"><span></span></button></div>
         </div>
       </section>
       <aside class="panel quiz-summary">
         <div class="summary-hero"><span>今回の挑戦</span><strong>${escapeHtml(subject?.name || "全分野")}</strong><p>${escapeHtml(state.selectedCategory)}</p></div>
         <div class="mini-stat"><span>問題数</span><strong>${state.questionCount}問</strong></div>
-        <div class="mini-stat"><span>形式</span><strong>${escapeHtml(modeOptions.find(([value]) => value === state.answerMode)?.[1] || "ミックス")}</strong></div>
-        <button class="primary-button" data-action="start-quiz">クイズを開始 <span>→</span></button>
+        <div class="mini-stat"><span>形式</span><strong>${escapeHtml(modeOptions.find(([value]) => value === state.answerMode)?.[1] || "すべて")}</strong></div>
+        <div class="mini-stat"><span>該当問題</span><strong>${availablePool.length}問</strong></div>
+        ${resourceSection ? `<button class="secondary-button full-button" data-action="open-reference" data-section="${resourceSection}">資料を先に見る</button>` : ""}
+        <button class="primary-button" data-action="start-quiz" ${availablePool.length ? "" : "disabled"}>クイズを開始 <span>→</span></button>
       </aside>
     </div>
   `;
@@ -672,9 +962,13 @@ function quizMarkup() {
   const progress = ((state.questionIndex + (state.answered ? 1 : 0)) / state.quizQuestions.length) * 100;
   const responseNormalized = normalizeAnswer(state.response);
   const answerNormalized = normalizeAnswer(question.answer);
-  const isCorrect = state.answered && responseNormalized === answerNormalized;
+  const multi = isMultiQuestion(question);
+  const multiEvaluation = multi ? evaluateMultiAnswer(state.response, question) : null;
+  const isCorrect = state.answered && (multi ? multiEvaluation.correct : responseNormalized === answerNormalized);
   const choices = question.type === "truefalse" ? ["○", "×"] : (question.choices || []);
   const imageUrl = normalizeImageUrl(question.imageUrl);
+  const prompt = displayPrompt(question);
+  const inputType = multi || question.type === "text" || question.type === "multi";
 
   return `
     <section class="quiz-stage">
@@ -687,14 +981,17 @@ function quizMarkup() {
         <div class="question-meta"><span>${escapeHtml(question.category)}・難易度 ${"★".repeat(Number(question.difficulty) || 1)}</span><span>QUESTION ${state.questionIndex + 1}</span></div>
         ${imageUrl ? `
           <figure class="question-image-wrap">
-            <img class="question-image" src="${escapeHtml(imageUrl)}" alt="問題画像：${escapeHtml(question.prompt)}" loading="eager" decoding="async" referrerpolicy="no-referrer">
+            <img class="question-image" src="${escapeHtml(imageUrl)}" alt="問題画像：${escapeHtml(prompt)}" loading="eager" decoding="async" referrerpolicy="no-referrer">
             <figcaption>画像を見て答えてください</figcaption>
             <p class="question-image-error" role="status">画像を読み込めませんでした。</p>
           </figure>
         ` : ""}
-        <h1 class="question-text">${escapeHtml(question.prompt)}</h1>
-        ${question.type === "text"
-          ? `<form id="answer-form"><input class="text-answer" name="answer" value="${escapeHtml(state.response)}" placeholder="答えを入力" autocomplete="off" ${state.answered ? "disabled" : ""}></form>`
+        ${multi ? `<div class="multi-badge">多答・全${multiExpectedGroups(question).length}項目</div>` : ""}
+        <h1 class="question-text">${escapeHtml(prompt)}</h1>
+        ${inputType
+          ? `<form id="answer-form">${multi
+              ? `<textarea class="text-answer multi-answer" name="answer" placeholder="1行に1つずつ（または読点・カンマ区切り）" autocomplete="off" ${state.answered ? "disabled" : ""}>${escapeHtml(state.response)}</textarea><p class="multi-hint">順不同で回答できます。表記違いは登録済みの別名まで判定します。</p>`
+              : `<input class="text-answer" name="answer" value="${escapeHtml(state.response)}" placeholder="答えを入力" autocomplete="off" ${state.answered ? "disabled" : ""}>`}</form>`
           : `<div class="choices">${choices.map((choice) => {
               const selected = normalizeAnswer(choice) === responseNormalized;
               let className = selected ? "selected" : "";
@@ -705,12 +1002,13 @@ function quizMarkup() {
         }
         ${state.answered ? `
           <div class="answer-feedback ${isCorrect ? "correct" : "incorrect"}">
-            <strong>${isCorrect ? "正解！すばらしい！" : `おしい！正解は「${escapeHtml(question.answer)}」`}</strong>
-            ${escapeHtml(question.explanation)}
+            <strong>${isCorrect ? "正解！すばらしい！" : multi ? `${multiEvaluation.matched.length}/${multiEvaluation.expected.length}項目 正解` : `おしい！正解は「${escapeHtml(question.answer)}」`}</strong>
+            ${multi && !isCorrect ? `<div class="multi-feedback">${multiEvaluation.missing.length ? `<p><b>不足：</b>${multiEvaluation.missing.map(escapeHtml).join("／")}</p>` : ""}${multiEvaluation.extras.length ? `<p><b>余分・表記違い：</b>${multiEvaluation.extras.map(escapeHtml).join("／")}</p>` : ""}<details><summary>正解一覧を表示</summary><p>${multiEvaluation.expected.map(escapeHtml).join("／")}</p></details></div>` : ""}
+            <p>${escapeHtml(question.explanation)}</p>
           </div>
         ` : ""}
         <div class="quiz-actions">
-          ${!state.answered && question.type === "text" ? '<button class="primary-button" data-action="submit-text-answer">回答する</button>' : ""}
+          ${!state.answered && inputType ? '<button class="primary-button" data-action="submit-text-answer">回答する</button>' : ""}
           ${state.answered ? `<button class="primary-button" data-action="next-question">${state.questionIndex + 1 === state.quizQuestions.length ? "結果を見る" : "次の問題"} <span>→</span></button>` : ""}
         </div>
       </article>
@@ -831,12 +1129,12 @@ function adminMarkup() {
         <form id="question-form" class="form-grid">
           <div class="form-grid two">
             <div class="field"><label>分野</label><select name="subjectId">${state.subjects.map((subject) => `<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join("")}</select></div>
-            <div class="field"><label>形式</label><select name="type"><option value="choice">択一</option><option value="text">記述</option><option value="truefalse">○×</option></select></div>
+            <div class="field"><label>形式</label><select name="type"><option value="choice">択一</option><option value="text">記述</option><option value="truefalse">○×</option><option value="multi">多答</option></select></div>
           </div>
           <div class="field"><label>分類</label><input name="category" required placeholder="例：漢字"></div>
           <div class="field"><label>問題文</label><textarea name="prompt" required maxlength="500"></textarea></div>
           <div class="field"><label>問題画像URL（任意・HTTPS）</label><input name="imageUrl" type="url" inputmode="url" maxlength="2048" placeholder="https://example.com/question-image.jpg"><small>画像を表示する問題だけ入力します。公開状態で直接表示できる画像URLを指定してください。</small></div>
-          <div class="field"><label>選択肢（択一のみ・カンマ区切り）</label><input name="choices" placeholder="答え1, 答え2, 答え3, 答え4"></div>
+          <div class="field"><label>選択肢／多答の正解一覧（カンマ・改行区切り）</label><textarea name="choices" placeholder="択一：答え1, 答え2…&#10;多答：1998年 長野, 2020年 東京…"></textarea><small>多答の別名は「正規表記::別名」の形式で登録できます。</small></div>
           <div class="form-grid two">
             <div class="field"><label>正解</label><input name="answer" required maxlength="150"></div>
             <div class="field"><label>難易度</label><select name="difficulty"><option value="1">★</option><option value="2">★★</option><option value="3">★★★</option></select></div>
@@ -885,6 +1183,11 @@ function pageMarkup() {
     records: recordsMarkup,
     ranking: rankingMarkup,
     admin: adminMarkup,
+    reference: referenceMarkup,
+    "trivia-library": triviaLibraryMarkup,
+    prime: primeSetupMarkup,
+    "prime-game": primeGameMarkup,
+    "prime-result": primeResultMarkup,
   };
   return (pages[state.view] || homeMarkup)();
 }
@@ -907,6 +1210,7 @@ function render() {
     startKanjiTimer();
     window.requestAnimationFrame(() => document.getElementById("kanji-answer")?.focus());
   }
+  if (state.view === "prime-game" && state.primeMode === "timed") startPrimeTimer();
 }
 
 function navigate(view) {
@@ -926,17 +1230,13 @@ function buildQuiz() {
   let pool = state.questions.filter((question) => {
     const subjectMatch = !state.selectedSubjectId || question.subjectId === state.selectedSubjectId;
     const categoryMatch = state.selectedCategory === "すべて" || question.category === state.selectedCategory;
-    const modeMatch = state.answerMode === "mixed" || question.type === state.answerMode;
+    const modeMatch = questionMatchesMode(question);
     const difficultyMatch = state.difficulty === 0 || Number(question.difficulty) === state.difficulty;
     return subjectMatch && categoryMatch && modeMatch && difficultyMatch;
   });
 
   if (!pool.length) {
-    pool = state.questions.filter((question) => !state.selectedSubjectId || question.subjectId === state.selectedSubjectId);
-    showToast("条件に合う問題が少ないため、形式・難易度を広げました。");
-  }
-  if (!pool.length) {
-    showToast("この分野には問題がありません。管理ページから追加してください。");
+    showToast("この条件で公開中の問題はありません。形式または難易度を変更してください。");
     return;
   }
   if (state.shuffle) pool = shuffle(pool);
@@ -947,7 +1247,7 @@ function buildQuiz() {
   state.questionIndex = 0;
   state.response = "";
   state.answered = false;
-  state.timeLeft = 20;
+  state.timeLeft = questionTimeLimit(state.quizQuestions[0]);
   state.results = [];
   state.latestAttempt = null;
   navigate("quiz");
@@ -958,7 +1258,9 @@ function submitAnswer(value) {
   const question = state.quizQuestions[state.questionIndex];
   if (!question) return;
   state.response = String(value ?? "");
-  const correct = normalizeAnswer(state.response) === normalizeAnswer(question.answer);
+  const correct = isMultiQuestion(question)
+    ? evaluateMultiAnswer(state.response, question).correct
+    : normalizeAnswer(state.response) === normalizeAnswer(question.answer);
   state.results.push({
     questionId: question.id,
     response: state.response || "未回答",
@@ -977,7 +1279,7 @@ function nextQuestion() {
   state.questionIndex += 1;
   state.response = "";
   state.answered = false;
-  state.timeLeft = 20;
+  state.timeLeft = questionTimeLimit(state.quizQuestions[state.questionIndex]);
   render();
 }
 
@@ -1169,6 +1471,97 @@ function finishKanjiGame() {
   navigate("kanji-result");
 }
 
+function createPrimeWall() {
+  const level = PRIME_LEVELS[state.primeDifficulty] || PRIME_LEVELS.normal;
+  const factorCount = level.minFactors + Math.floor(Math.random() * (level.maxFactors - level.minFactors + 1));
+  const factors = Array.from({ length: factorCount }, () => level.primes[Math.floor(Math.random() * level.primes.length)]).sort((a, b) => a - b);
+  const number = factors.reduce((product, factor) => product * factor, 1);
+  state.primeRound += 1;
+  state.primeCurrent = number;
+  state.primeRemaining = number;
+  state.primeFactors = [];
+  state.primeMisses = 0;
+}
+
+function startPrimeGame() {
+  state.primeRound = 0;
+  state.primeScore = 0;
+  state.primeStreak = 0;
+  state.primeMaxStreak = 0;
+  state.primeSolved = 0;
+  state.primeTimeLeft = 60;
+  state.primeStartedAt = Date.now();
+  state.primeResults = [];
+  state.primeLatest = null;
+  createPrimeWall();
+  navigate("prime-game");
+}
+
+function choosePrime(prime) {
+  if (state.view !== "prime-game" || state.primeRemaining === 1) return;
+  const value = Number(prime);
+  if (!Number.isInteger(value) || value < 2) return;
+  if (state.primeRemaining % value !== 0) {
+    state.primeMisses += 1;
+    state.primeStreak = 0;
+    showToast(`${value}では割り切れません。別の素数を選ぼう。`);
+    render();
+    return;
+  }
+  state.primeRemaining /= value;
+  state.primeFactors.push(value);
+  if (state.primeRemaining === 1) {
+    const earned = Math.max(50, state.primeFactors.length * 120 + state.primeStreak * 35 - state.primeMisses * 40);
+    state.primeScore += earned;
+    state.primeSolved += 1;
+    state.primeStreak += 1;
+    state.primeMaxStreak = Math.max(state.primeMaxStreak, state.primeStreak);
+    state.primeResults.push({ number: state.primeCurrent, factors: [...state.primeFactors], misses: state.primeMisses, earned });
+  }
+  render();
+}
+
+function nextPrimeWall() {
+  if (state.primeRemaining !== 1) return;
+  if (state.primeMode === "casual" && state.primeSolved >= state.primeTargetCount) {
+    finishPrimeGame();
+    return;
+  }
+  createPrimeWall();
+  render();
+}
+
+function startPrimeTimer() {
+  timerId = window.setInterval(() => {
+    state.primeTimeLeft -= 1;
+    const clock = document.querySelector(".prime-clock");
+    const bar = document.querySelector(".prime-game-progress span");
+    if (clock) clock.textContent = String(Math.max(0, state.primeTimeLeft));
+    if (bar) bar.style.width = `${Math.max(0, (state.primeTimeLeft / 60) * 100)}%`;
+    if (state.primeTimeLeft <= 0) {
+      window.clearInterval(timerId);
+      finishPrimeGame();
+    }
+  }, 1000);
+}
+
+function finishPrimeGame() {
+  window.clearInterval(timerId);
+  const elapsed = state.primeMode === "timed"
+    ? 60
+    : Math.max(1, Math.round((Date.now() - Number(state.primeStartedAt || Date.now())) / 1000));
+  const misses = state.primeResults.reduce((sum, result) => sum + result.misses, 0) + (state.primeRemaining === 1 ? 0 : state.primeMisses);
+  const previousBest = Number(state.primeBest.score) || 0;
+  const isBest = state.primeScore > previousBest;
+  state.primeBest = {
+    score: Math.max(previousBest, state.primeScore),
+    streak: Math.max(Number(state.primeBest.streak) || 0, state.primeMaxStreak),
+  };
+  writeStorage(STORAGE.primeBest, state.primeBest);
+  state.primeLatest = { score: state.primeScore, solved: state.primeSolved, maxStreak: state.primeMaxStreak, misses, elapsed, isBest };
+  navigate("prime-result");
+}
+
 function calculateStreak(attempts) {
   const dayKeys = [...new Set(attempts.map((attempt) => localDateKey(new Date(attempt.createdAt))))].sort().reverse();
   if (!dayKeys.length) return 0;
@@ -1252,6 +1645,23 @@ app.addEventListener("click", (event) => {
   if (!button) return;
   const { action } = button.dataset;
   if (action === "navigate") navigate(button.dataset.view);
+  if (action === "open-reference") {
+    const section = button.dataset.section;
+    state.referenceSection = section;
+    state.referenceTab = section === "olympics" ? "summer" : section === "movies" ? "allTime" : "m1";
+    state.selectedSubjectId = section === "olympics" ? "pe" : "culture";
+    state.selectedCategory = section === "olympics" ? "オリンピック" : section === "movies" ? "映画" : "お笑い";
+    navigate("reference");
+  }
+  if (action === "set-reference-tab") { state.referenceTab = button.dataset.value; render(); }
+  if (action === "set-prime-difficulty") { state.primeDifficulty = button.dataset.value; render(); }
+  if (action === "set-prime-mode") { state.primeMode = button.dataset.value; render(); }
+  if (action === "start-prime-game") startPrimeGame();
+  if (action === "choose-prime") choosePrime(button.dataset.value);
+  if (action === "next-prime-wall") nextPrimeWall();
+  if (action === "exit-prime-game") {
+    if (window.confirm("素因数分解ゲームを終了して数学へ戻りますか？")) navigate("prime");
+  }
   if (action === "set-kanji-difficulty") {
     state.kanjiDifficulty = Number(button.dataset.value);
     render();
@@ -1270,6 +1680,7 @@ app.addEventListener("click", (event) => {
     state.selectedSubjectId = null;
     state.selectedCategory = "すべて";
     state.questionCount = 5;
+    state.answerMode = "all";
     buildQuiz();
   }
   if (action === "select-category") {
@@ -1285,7 +1696,7 @@ app.addEventListener("click", (event) => {
   if (action === "start-quiz") buildQuiz();
   if (action === "answer-choice") submitAnswer(button.dataset.value);
   if (action === "submit-text-answer") {
-    const input = document.querySelector('#answer-form input[name="answer"]');
+    const input = document.querySelector('#answer-form [name="answer"]');
     if (!input?.value.trim()) { showToast("答えを入力してください。"); return; }
     submitAnswer(input.value);
   }
@@ -1364,7 +1775,8 @@ app.addEventListener("submit", (event) => {
   if (event.target.id === "question-form") {
     if (state.connected && !requireAdminKey()) return;
     const form = new FormData(event.target);
-    const type = String(form.get("type") || "choice");
+    const selectedType = String(form.get("type") || "choice");
+    const type = selectedType === "multi" ? "text" : selectedType;
     let choices = String(form.get("choices") || "").split(/[,、\n]/).map((item) => item.trim()).filter(Boolean);
     if (type === "truefalse") choices = ["○", "×"];
     const rawImageUrl = String(form.get("imageUrl") || "").trim();
@@ -1378,7 +1790,7 @@ app.addEventListener("submit", (event) => {
       subjectId: String(form.get("subjectId") || ""),
       category: String(form.get("category") || "").trim(),
       type,
-      prompt: String(form.get("prompt") || "").trim(),
+      prompt: `${selectedType === "multi" ? `${MULTI_PREFIX} ` : ""}${String(form.get("prompt") || "").trim()}`,
       imageUrl,
       choices,
       answer: String(form.get("answer") || "").trim(),
@@ -1388,6 +1800,10 @@ app.addEventListener("submit", (event) => {
     if (!question.subjectId || !question.category || !question.prompt || !question.answer || !question.explanation) return;
     if (type === "choice" && choices.length < 2) {
       showToast("択一問題には2つ以上の選択肢を入力してください。");
+      return;
+    }
+    if (selectedType === "multi" && choices.length < 2) {
+      showToast("多答問題には2項目以上の正解一覧を入力してください。");
       return;
     }
     state.questions.push(question);
