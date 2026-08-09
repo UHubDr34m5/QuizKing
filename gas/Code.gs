@@ -2,15 +2,13 @@
  * QuizKing - Google Apps Script backend
  *
  * 1. setupQuizKing() を実行
- * 2. setAdminKey("8文字以上の管理者キー") を実行
- * 3. ウェブアプリとしてデプロイ
+ * 2. ウェブアプリとしてデプロイ
  *
  * GitHub Pagesからの読み込みはJSONP、更新はtext/plainのPOSTで行います。
  */
 
 var QUIZKING = {
   spreadsheetProperty: "QUIZKING_SPREADSHEET_ID",
-  adminHashProperty: "QUIZKING_ADMIN_KEY_HASH",
   cacheKey: "quizking-bootstrap-v1",
   sheets: {
     subjects: "Subjects",
@@ -19,8 +17,8 @@ var QUIZKING = {
     options: "Options"
   },
   headers: {
-    subjects: ["id", "name", "icon", "color", "description", "categoriesJson", "sortOrder", "公開状態", "updatedAt"],
-    questions: ["id", "subjectId", "category", "type", "prompt", "choicesJson", "answer", "explanation", "difficulty", "kanjiLevel", "sortOrder", "updatedAt", "公開状態", "imageUrl"],
+    subjects: ["id", "name", "icon", "color", "description", "categoriesJson", "updatedAt", "公開状態"],
+    questions: ["id", "subjectId", "category", "type", "prompt", "choicesJson", "answer", "explanation", "difficulty", "updatedAt", "公開状態", "imageUrl", "kanjiLevel"],
     attempts: ["id", "clientId", "nickname", "subjectId", "score", "total", "correctRate", "xpEarned", "answersJson", "createdAt"],
     options: ["subjectId", "category", "type", "公開状態", "kanjiLevel"]
   }
@@ -51,27 +49,6 @@ function setupQuizKing() {
     spreadsheetId: spreadsheet.getId(),
     spreadsheetUrl: spreadsheet.getUrl()
   };
-}
-
-function setAdminKey(adminKey) {
-  var value = cleanString_(adminKey, 200);
-  if (value.length < 8) {
-    throw new Error("管理者キーは8文字以上にしてください。");
-  }
-  PropertiesService.getScriptProperties().setProperty(
-    QUIZKING.adminHashProperty,
-    sha256_(value)
-  );
-  Logger.log("管理者キーを設定しました。キー自体は保存されません。");
-  return true;
-}
-
-function createAdminKey() {
-  var rawKey = Utilities.getUuid().replace(/-/g, "").slice(0, 16);
-  setAdminKey(rawKey);
-  Logger.log("管理者キー: " + rawKey);
-  Logger.log("この実行ログを閉じる前に安全な場所へ控えてください。");
-  return rawKey;
 }
 
 function getQuizKingSpreadsheetUrl() {
@@ -126,18 +103,6 @@ function doPost(event) {
 
     if (action === "recordAttempt") {
       result = recordAttempt_(payload);
-    } else if (action === "adminAddSubject") {
-      assertAdmin_(payload.adminKey);
-      result = adminAddSubject_(payload.subject);
-    } else if (action === "adminAddQuestion") {
-      assertAdmin_(payload.adminKey);
-      result = adminAddQuestion_(payload.question);
-    } else if (action === "adminReorderSubjects") {
-      assertAdmin_(payload.adminKey);
-      result = adminReorder_(QUIZKING.sheets.subjects, payload.order);
-    } else if (action === "adminReorderQuestions") {
-      assertAdmin_(payload.adminKey);
-      result = adminReorder_(QUIZKING.sheets.questions, payload.order);
     } else {
       throw new Error("未対応の更新操作です。");
     }
@@ -213,7 +178,6 @@ function getPublicSubjects_(spreadsheet) {
     .filter(function (row) {
       return cleanString_(row.id, 80) && isPublicRow_(row);
     })
-    .sort(sortByOrder_)
     .map(function (row) {
       return {
         id: cleanString_(row.id, 80),
@@ -235,7 +199,6 @@ function getPublicQuestions_(spreadsheet) {
     .filter(function (row) {
       return cleanString_(row.id, 100) && cleanString_(row.prompt, 1000) && isPublicRow_(row);
     })
-    .sort(sortByOrder_)
     .map(function (row) {
       var type = validQuestionType_(row.type);
       return {
@@ -293,161 +256,6 @@ function recordAttempt_(payload) {
   };
 }
 
-function adminAddSubject_(rawSubject) {
-  var subject = rawSubject || {};
-  var name = cleanString_(subject.name, 50);
-  if (!name) throw new Error("分野名を入力してください。");
-  var id = cleanId_(subject.id || ("field-" + new Date().getTime()));
-  var categories = normalizeStringArray_(subject.categories, 30, 80);
-  if (!categories.length) categories = ["基礎"];
-
-  var spreadsheet = getOrCreateSpreadsheet_();
-  var sheet = spreadsheet.getSheetByName(QUIZKING.sheets.subjects);
-  assertUniqueId_(sheet, id);
-  var now = new Date();
-  var row = {
-    id: id,
-    name: name,
-    icon: cleanString_(subject.icon, 8) || "？",
-    color: validColor_(subject.color),
-    description: cleanString_(subject.description, 300) || (name + "の知識を楽しく学ぼう。"),
-    categoriesJson: JSON.stringify(categories),
-    sortOrder: Math.max(0, sheet.getLastRow() - 1),
-    "公開状態": "公開",
-    updatedAt: now
-  };
-
-  withDocumentLock_(function () {
-    appendObjects_(sheet, QUIZKING.headers.subjects, [row]);
-    var optionsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.options);
-    addOptionIfMissing_(optionsSheet, "subjectId", id);
-    categories.forEach(function (category) {
-      addOptionIfMissing_(optionsSheet, "category", category);
-    });
-  });
-  clearBootstrapCache_();
-  return { id: id };
-}
-
-function adminAddQuestion_(rawQuestion) {
-  var question = rawQuestion || {};
-  var subjectId = cleanId_(question.subjectId);
-  var category = cleanString_(question.category, 80);
-  var prompt = cleanString_(question.prompt, 1000);
-  var rawImageUrl = cleanString_(question.imageUrl, 2048);
-  var imageUrl = validImageUrl_(rawImageUrl);
-  var answer = cleanString_(question.answer, 300);
-  var explanation = cleanString_(question.explanation, 1000);
-  var type = validQuestionType_(question.type);
-  var kanjiLevel = subjectId === "japanese" && category === "漢字"
-    ? validKanjiLevel_(question.kanjiLevel)
-    : "";
-  if (!subjectId || !category || !prompt || !answer || !explanation) {
-    throw new Error("問題の必須項目が不足しています。");
-  }
-  if (rawImageUrl && !imageUrl) {
-    throw new Error("画像URLはhttps://で始まる有効なURLを指定してください。");
-  }
-
-  var isMulti = type === "multi" || /^【多答】/.test(prompt);
-  var choices = type === "truefalse"
-    ? ["○", "×"]
-    : normalizeStringArray_(question.choices, isMulti ? 100 : 10, 200);
-  if (type === "choice" && choices.length < 2) {
-    throw new Error("択一問題には2つ以上の選択肢が必要です。");
-  }
-
-  var spreadsheet = getOrCreateSpreadsheet_();
-  var subjectsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.subjects);
-  var questionsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.questions);
-  assertSubjectExists_(subjectsSheet, subjectId);
-  var now = new Date();
-  var id = "";
-
-  withDocumentLock_(function () {
-    var nextRowNumber = getLastDataRowInColumn_(questionsSheet, 2) + 1;
-    id = questionIdForRow_(nextRowNumber);
-    var row = {
-      id: "",
-      subjectId: subjectId,
-      category: category,
-      type: type,
-      prompt: prompt,
-      imageUrl: imageUrl,
-      choicesJson: JSON.stringify(choices),
-      answer: answer,
-      explanation: explanation,
-      difficulty: clampNumber_(question.difficulty, 1, 3, 1),
-      kanjiLevel: kanjiLevel,
-      sortOrder: Math.max(0, nextRowNumber - 2),
-      updatedAt: now,
-      "公開状態": "公開"
-    };
-    appendObjects_(questionsSheet, QUIZKING.headers.questions, [row]);
-    addCategoryIfMissing_(subjectsSheet, subjectId, category);
-    addOptionIfMissing_(spreadsheet.getSheetByName(QUIZKING.sheets.options), "category", category);
-  });
-  clearBootstrapCache_();
-  return { id: id };
-}
-
-function adminReorder_(sheetName, rawOrder) {
-  if (!Array.isArray(rawOrder) || !rawOrder.length) {
-    throw new Error("並び順のデータがありません。");
-  }
-  var order = rawOrder.slice(0, 1000);
-  var spreadsheet = getOrCreateSpreadsheet_();
-  var sheet = spreadsheet.getSheetByName(sheetName);
-  var headers = sheetName === QUIZKING.sheets.subjects
-    ? QUIZKING.headers.subjects
-    : QUIZKING.headers.questions;
-  var idColumn = headers.indexOf("id") + 1;
-  var orderColumn = headers.indexOf("sortOrder") + 1;
-  var updatedColumn = headers.indexOf("updatedAt") + 1;
-
-  withDocumentLock_(function () {
-    var lastRow = sheet.getLastRow();
-    if (lastRow <= 1) return;
-    var ids = sheet.getRange(2, idColumn, lastRow - 1, 1).getValues();
-    var rowById = {};
-    ids.forEach(function (row, index) {
-      rowById[String(row[0])] = index + 2;
-    });
-    var now = new Date();
-    order.forEach(function (item, index) {
-      var id = cleanString_(item && item.id, 100);
-      var rowNumber = rowById[id];
-      if (!rowNumber) return;
-      sheet.getRange(rowNumber, orderColumn).setValue(
-        clampNumber_(item.sortOrder, 0, 100000, index)
-      );
-      sheet.getRange(rowNumber, updatedColumn).setValue(now);
-    });
-  });
-  clearBootstrapCache_();
-  return { updated: order.length };
-}
-
-function addCategoryIfMissing_(subjectsSheet, subjectId, category) {
-  var headers = QUIZKING.headers.subjects;
-  var rows = readObjectsWithRows_(subjectsSheet, headers);
-  var target = rows.filter(function (item) {
-    return String(item.data.id) === subjectId;
-  })[0];
-  if (!target) return;
-  var categories = parseJsonArray_(target.data.categoriesJson);
-  if (categories.indexOf(category) >= 0) return;
-  categories.push(category);
-  subjectsSheet.getRange(
-    target.rowNumber,
-    headers.indexOf("categoriesJson") + 1
-  ).setValue(JSON.stringify(categories));
-  subjectsSheet.getRange(
-    target.rowNumber,
-    headers.indexOf("updatedAt") + 1
-  ).setValue(new Date());
-}
-
 function refreshOptions_(spreadsheet) {
   var optionsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.options);
   var subjectsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.subjects);
@@ -488,23 +296,6 @@ function refreshOptions_(spreadsheet) {
   if (values.length) {
     optionsSheet.getRange(2, 1, values.length, QUIZKING.headers.options.length).setValues(values);
   }
-}
-
-function addOptionIfMissing_(optionsSheet, header, value) {
-  var normalized = cleanString_(value, 100);
-  if (!optionsSheet || !normalized) return;
-  var headers = getSheetHeaders_(optionsSheet);
-  var column = headers.indexOf(header) + 1;
-  if (column <= 0) return;
-  var lastRow = Math.max(2, optionsSheet.getLastRow());
-  var values = optionsSheet.getRange(2, column, lastRow - 1, 1).getDisplayValues();
-  var firstBlank = 0;
-  for (var index = 0; index < values.length; index += 1) {
-    var current = cleanString_(values[index][0], 100);
-    if (current === normalized) return;
-    if (!current && !firstBlank) firstBlank = index + 2;
-  }
-  optionsSheet.getRange(firstBlank || (lastRow + 1), column).setValue(normalized);
 }
 
 function ensureQuestionIdFormula_(sheet) {
@@ -828,48 +619,6 @@ function getLastDataRowInColumn_(sheet, column) {
   return 1;
 }
 
-function questionIdForRow_(rowNumber) {
-  var number = Math.max(1, Number(rowNumber) - 1);
-  return "q" + (number < 10 ? ("0" + number) : number);
-}
-
-function readObjectsWithRows_(sheet, headers) {
-  return readObjects_(sheet, headers).map(function (data, index) {
-    return { rowNumber: index + 2, data: data };
-  });
-}
-
-function assertAdmin_(rawKey) {
-  var expected = PropertiesService.getScriptProperties().getProperty(QUIZKING.adminHashProperty);
-  if (!expected) {
-    throw new Error("GASで管理者キーが設定されていません。");
-  }
-  var actual = sha256_(cleanString_(rawKey, 200));
-  if (!safeEqual_(expected, actual)) {
-    throw new Error("管理者キーが正しくありません。");
-  }
-}
-
-function assertUniqueId_(sheet, id) {
-  var lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return;
-  var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-  var exists = ids.some(function (row) {
-    return String(row[0]) === id;
-  });
-  if (exists) throw new Error("同じIDがすでに登録されています。");
-}
-
-function assertSubjectExists_(sheet, subjectId) {
-  var lastRow = sheet.getLastRow();
-  if (lastRow <= 1) throw new Error("分野が登録されていません。");
-  var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-  var exists = ids.some(function (row) {
-    return String(row[0]) === subjectId;
-  });
-  if (!exists) throw new Error("指定した分野が見つかりません。");
-}
-
 function withDocumentLock_(callback) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -887,14 +636,6 @@ function clearBootstrapCache_() {
 function cleanString_(value, maxLength) {
   var text = value === null || value === undefined ? "" : String(value);
   return text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim().slice(0, maxLength || 1000);
-}
-
-function cleanId_(value) {
-  return cleanString_(value, 100)
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 
 function validQuestionType_(value) {
@@ -957,30 +698,6 @@ function asBoolean_(value, fallback) {
   return fallback;
 }
 
-function sortByOrder_(a, b) {
-  return clampNumber_(a.sortOrder, 0, 1000000, 0) - clampNumber_(b.sortOrder, 0, 1000000, 0);
-}
-
-function sha256_(value) {
-  var bytes = Utilities.computeDigest(
-    Utilities.DigestAlgorithm.SHA_256,
-    value,
-    Utilities.Charset.UTF_8
-  );
-  return bytes.map(function (byte) {
-    return ("0" + ((byte + 256) % 256).toString(16)).slice(-2);
-  }).join("");
-}
-
-function safeEqual_(left, right) {
-  if (left.length !== right.length) return false;
-  var difference = 0;
-  for (var index = 0; index < left.length; index += 1) {
-    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
-  }
-  return difference === 0;
-}
-
 function publicError_(error) {
   var message = error && error.message ? error.message : "処理中にエラーが発生しました。";
   return cleanString_(message, 300);
@@ -1012,17 +729,17 @@ function calculateStreak_(dateKeys) {
 function seedSubjects_() {
   var now = new Date();
   var subjects = [
-    ["japanese", "国語", "本", "#b7f43a", "ことばの力を磨き、表現と読解の土台をつくろう。", ["漢字", "四字熟語", "類義語・対義語", "諺", "故事成語", "文法", "文学"]],
+    ["japanese", "国語", "本", "#ef5350", "ことばの力を磨き、表現と読解の土台をつくろう。", ["漢字", "四字熟語", "類義語・対義語", "諺", "故事成語", "文法", "文学"]],
     ["math", "数学", "∑", "#20e0ff", "計算から数学雑学まで、筋道立てて考える力を育てよう。", ["計算", "数と式", "方程式", "関数", "図形", "確率・統計", "数学史・数学雑学", "素因数分解"]],
     ["english", "英語", "ABC", "#9a70ff", "単語・文法・会話表現から英語圏の文化まで学ぼう。", ["英単語", "英熟語", "文法", "発音", "会話表現", "英語圏文化"]],
     ["science", "理科", "⚗", "#b7f43a", "自然の「なぜ？」を物理・化学・生物・地学から解き明かそう。", ["物理", "化学", "生物", "地学", "科学史", "身近な科学"]],
-    ["social", "社会", "◎", "#20e0ff", "歴史・地理・政治・経済をつなげて世界を理解しよう。", ["日本史", "世界史", "地理", "政治", "経済", "時事", "世界遺産"]],
+    ["social", "社会", "◎", "#ff9f43", "歴史・地理・政治・経済をつなげて世界を理解しよう。", ["日本史", "世界史", "地理", "政治", "経済", "時事", "世界遺産"]],
     ["pe", "体育", "●", "#ff6f91", "競技のルール、記録、歴史からスポーツをもっと楽しもう。", ["球技", "陸上", "水泳", "体操", "武道", "ルール・記録", "スポーツ史", "オリンピック"]],
-    ["health", "保健", "＋", "#57d6a5", "体と心を守るために、正しい健康知識を身につけよう。", ["人体", "病気・予防", "応急手当", "心の健康", "栄養", "生活習慣"]],
-    ["informatics", "情報", "</>", "#20e0ff", "コンピュータ、AI、情報モラルを実生活につなげよう。", ["コンピュータ", "ネットワーク", "プログラミング", "情報モラル", "AI", "データ活用"]],
-    ["home", "家庭科", "⌂", "#ffb84d", "衣食住、家計、子育てに役立つ生活の知恵を学ぼう。", ["調理", "栄養", "被服", "住生活", "消費生活", "子育て"]],
+    ["health", "保健", "＋", "#9a70ff", "体と心を守るために、正しい健康知識を身につけよう。", ["人体", "病気・予防", "応急手当", "心の健康", "栄養", "生活習慣"]],
+    ["informatics", "情報", "</>", "#8a94a6", "コンピュータ、AI、情報モラルを実生活につなげよう。", ["コンピュータ", "ネットワーク", "プログラミング", "情報モラル", "AI", "データ活用"]],
+    ["home", "家庭科", "⌂", "#ff6fae", "衣食住、家計、子育てに役立つ生活の知恵を学ぼう。", ["調理", "栄養", "被服", "住生活", "消費生活", "子育て"]],
     ["music", "音楽", "♪", "#dc72ff", "楽典、楽器、作曲家、世界の音楽を味わおう。", ["楽典", "楽器", "作曲家", "日本音楽", "世界の音楽", "音楽史"]],
-    ["art", "美術", "◇", "#ff6f91", "名作と表現技法を知り、見る力とつくる力を育てよう。", ["絵画", "彫刻", "色彩", "デザイン", "日本美術", "西洋美術"]],
+    ["art", "美術", "◇", "#57d6a5", "名作と表現技法を知り、見る力とつくる力を育てよう。", ["絵画", "彫刻", "色彩", "デザイン", "日本美術", "西洋美術"]],
     ["calligraphy", "書道", "墨", "#d9c8ff", "書体、名筆、漢字の成り立ちから文字文化を味わおう。", ["楷書", "行書", "草書", "書道史", "漢字の成り立ち", "名筆"]],
     ["finance", "金融", "¥", "#ffd75a", "家計、税金、投資、保険を知り、お金と上手につき合おう。", ["家計", "貯蓄", "投資", "税金", "保険", "経済の仕組み", "詐欺対策"]],
     ["manners", "マナー", "礼", "#57d6a5", "相手を思いやる作法と言葉遣いを場面別に学ぼう。", ["食事", "冠婚葬祭", "ビジネス", "公共の場", "国際マナー", "言葉遣い"]],
@@ -1037,7 +754,6 @@ function seedSubjects_() {
       color: item[3],
       description: item[4],
       categoriesJson: JSON.stringify(item[5]),
-      sortOrder: index,
       "公開状態": "公開",
       updatedAt: now
     };
@@ -1082,7 +798,6 @@ function seedQuestions_() {
       explanation: item[7],
       difficulty: item[8],
       kanjiLevel: item[1] === "japanese" && item[2] === "漢字" ? "未設定" : "",
-      sortOrder: index,
       "公開状態": "公開",
       updatedAt: now
     };
