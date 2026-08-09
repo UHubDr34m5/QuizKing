@@ -15,12 +15,14 @@ var QUIZKING = {
   sheets: {
     subjects: "Subjects",
     questions: "Questions",
-    attempts: "Attempts"
+    attempts: "Attempts",
+    options: "Options"
   },
   headers: {
-    subjects: ["id", "name", "icon", "color", "description", "categoriesJson", "sortOrder", "isPublished", "updatedAt"],
-    questions: ["id", "subjectId", "category", "type", "prompt", "choicesJson", "answer", "explanation", "difficulty", "sortOrder", "isPublished", "updatedAt", "imageUrl"],
-    attempts: ["id", "clientId", "nickname", "subjectId", "score", "total", "correctRate", "xpEarned", "answersJson", "createdAt"]
+    subjects: ["id", "name", "icon", "color", "description", "categoriesJson", "sortOrder", "公開状態", "updatedAt"],
+    questions: ["id", "subjectId", "category", "type", "prompt", "choicesJson", "answer", "explanation", "difficulty", "kanjiLevel", "sortOrder", "updatedAt", "公開状態", "imageUrl"],
+    attempts: ["id", "clientId", "nickname", "subjectId", "score", "total", "correctRate", "xpEarned", "answersJson", "createdAt"],
+    options: ["subjectId", "category", "type", "公開状態", "kanjiLevel"]
   }
 };
 
@@ -29,6 +31,7 @@ function setupQuizKing() {
   var subjectsSheet = ensureSheet_(spreadsheet, QUIZKING.sheets.subjects, QUIZKING.headers.subjects);
   var questionsSheet = ensureSheet_(spreadsheet, QUIZKING.sheets.questions, QUIZKING.headers.questions);
   ensureSheet_(spreadsheet, QUIZKING.sheets.attempts, QUIZKING.headers.attempts);
+  ensureSheet_(spreadsheet, QUIZKING.sheets.options, QUIZKING.headers.options);
 
   if (subjectsSheet.getLastRow() <= 1) {
     appendObjects_(subjectsSheet, QUIZKING.headers.subjects, seedSubjects_());
@@ -37,6 +40,9 @@ function setupQuizKing() {
     appendObjects_(questionsSheet, QUIZKING.headers.questions, seedQuestions_());
   }
 
+  refreshOptions_(spreadsheet);
+  ensureQuestionIdFormula_(questionsSheet);
+  applyWorkbookValidation_(spreadsheet);
   formatWorkbook_(spreadsheet);
   clearBootstrapCache_();
   Logger.log("QuizKingのセットアップが完了しました。");
@@ -205,7 +211,7 @@ function getPublicSubjects_(spreadsheet) {
   );
   return objects
     .filter(function (row) {
-      return asBoolean_(row.isPublished, true);
+      return cleanString_(row.id, 80) && isPublicRow_(row);
     })
     .sort(sortByOrder_)
     .map(function (row) {
@@ -227,7 +233,7 @@ function getPublicQuestions_(spreadsheet) {
   );
   return objects
     .filter(function (row) {
-      return asBoolean_(row.isPublished, true);
+      return cleanString_(row.id, 100) && cleanString_(row.prompt, 1000) && isPublicRow_(row);
     })
     .sort(sortByOrder_)
     .map(function (row) {
@@ -242,7 +248,8 @@ function getPublicQuestions_(spreadsheet) {
         choices: type === "truefalse" ? ["○", "×"] : parseJsonArray_(row.choicesJson),
         answer: cleanString_(row.answer, 300),
         explanation: cleanString_(row.explanation, 1000),
-        difficulty: clampNumber_(row.difficulty, 1, 3, 1)
+        difficulty: clampNumber_(row.difficulty, 1, 3, 1),
+        kanjiLevel: validKanjiLevel_(row.kanjiLevel)
       };
     });
 }
@@ -306,12 +313,17 @@ function adminAddSubject_(rawSubject) {
     description: cleanString_(subject.description, 300) || (name + "の知識を楽しく学ぼう。"),
     categoriesJson: JSON.stringify(categories),
     sortOrder: Math.max(0, sheet.getLastRow() - 1),
-    isPublished: true,
+    "公開状態": "公開",
     updatedAt: now
   };
 
   withDocumentLock_(function () {
     appendObjects_(sheet, QUIZKING.headers.subjects, [row]);
+    var optionsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.options);
+    addOptionIfMissing_(optionsSheet, "subjectId", id);
+    categories.forEach(function (category) {
+      addOptionIfMissing_(optionsSheet, "category", category);
+    });
   });
   clearBootstrapCache_();
   return { id: id };
@@ -327,6 +339,9 @@ function adminAddQuestion_(rawQuestion) {
   var answer = cleanString_(question.answer, 300);
   var explanation = cleanString_(question.explanation, 1000);
   var type = validQuestionType_(question.type);
+  var kanjiLevel = subjectId === "japanese" && category === "漢字"
+    ? validKanjiLevel_(question.kanjiLevel)
+    : "";
   if (!subjectId || !category || !prompt || !answer || !explanation) {
     throw new Error("問題の必須項目が不足しています。");
   }
@@ -346,35 +361,31 @@ function adminAddQuestion_(rawQuestion) {
   var subjectsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.subjects);
   var questionsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.questions);
   assertSubjectExists_(subjectsSheet, subjectId);
-  var id = cleanId_(question.id || ("q-" + new Date().getTime()));
-  assertUniqueId_(questionsSheet, id);
   var now = new Date();
-  var row = {
-    id: id,
-    subjectId: subjectId,
-    category: category,
-    type: type,
-    prompt: prompt,
-    imageUrl: imageUrl,
-    choicesJson: JSON.stringify(choices),
-    answer: answer,
-    explanation: explanation,
-    difficulty: clampNumber_(question.difficulty, 1, 3, 1),
-    sortOrder: Math.max(0, questionsSheet.getLastRow() - 1),
-    isPublished: true,
-    updatedAt: now
-  };
+  var id = "";
 
   withDocumentLock_(function () {
-    var questionHeaders = getSheetHeaders_(questionsSheet);
-    var publishStatusIndex = questionHeaders.indexOf("公開状態");
-    if (publishStatusIndex >= 0) {
-      var nextRowNumber = questionsSheet.getLastRow() + 1;
-      row.isPublished = "=" + columnLabel_(publishStatusIndex + 1) + nextRowNumber + "=\"公開\"";
-      row["公開状態"] = "公開";
-    }
+    var nextRowNumber = getLastDataRowInColumn_(questionsSheet, 2) + 1;
+    id = questionIdForRow_(nextRowNumber);
+    var row = {
+      id: "",
+      subjectId: subjectId,
+      category: category,
+      type: type,
+      prompt: prompt,
+      imageUrl: imageUrl,
+      choicesJson: JSON.stringify(choices),
+      answer: answer,
+      explanation: explanation,
+      difficulty: clampNumber_(question.difficulty, 1, 3, 1),
+      kanjiLevel: kanjiLevel,
+      sortOrder: Math.max(0, nextRowNumber - 2),
+      updatedAt: now,
+      "公開状態": "公開"
+    };
     appendObjects_(questionsSheet, QUIZKING.headers.questions, [row]);
     addCategoryIfMissing_(subjectsSheet, subjectId, category);
+    addOptionIfMissing_(spreadsheet.getSheetByName(QUIZKING.sheets.options), "category", category);
   });
   clearBootstrapCache_();
   return { id: id };
@@ -435,6 +446,132 @@ function addCategoryIfMissing_(subjectsSheet, subjectId, category) {
     target.rowNumber,
     headers.indexOf("updatedAt") + 1
   ).setValue(new Date());
+}
+
+function refreshOptions_(spreadsheet) {
+  var optionsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.options);
+  var subjectsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.subjects);
+  var questionsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.questions);
+  var subjectIds = [];
+  var categories = [];
+
+  readObjects_(subjectsSheet, QUIZKING.headers.subjects).forEach(function (subject) {
+    var id = cleanString_(subject.id, 80);
+    if (id) subjectIds.push(id);
+    parseJsonArray_(subject.categoriesJson).forEach(function (category) {
+      categories.push(category);
+    });
+  });
+  readObjects_(questionsSheet, QUIZKING.headers.questions).forEach(function (question) {
+    var category = cleanString_(question.category, 80);
+    if (category) categories.push(category);
+  });
+
+  var columns = {
+    subjectId: uniqueStrings_(subjectIds),
+    category: uniqueStrings_(categories),
+    type: ["text", "choice", "truefalse", "multi"],
+    "公開状態": ["公開", "非公開"],
+    kanjiLevel: kanjiLevels_()
+  };
+  var rowCount = Math.max.apply(null, QUIZKING.headers.options.map(function (header) {
+    return columns[header].length;
+  }));
+  var values = [];
+  for (var rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
+    values.push(QUIZKING.headers.options.map(function (header) {
+      return columns[header][rowIndex] || "";
+    }));
+  }
+  optionsSheet.clearContents();
+  optionsSheet.getRange(1, 1, 1, QUIZKING.headers.options.length).setValues([QUIZKING.headers.options]);
+  if (values.length) {
+    optionsSheet.getRange(2, 1, values.length, QUIZKING.headers.options.length).setValues(values);
+  }
+}
+
+function addOptionIfMissing_(optionsSheet, header, value) {
+  var normalized = cleanString_(value, 100);
+  if (!optionsSheet || !normalized) return;
+  var headers = getSheetHeaders_(optionsSheet);
+  var column = headers.indexOf(header) + 1;
+  if (column <= 0) return;
+  var lastRow = Math.max(2, optionsSheet.getLastRow());
+  var values = optionsSheet.getRange(2, column, lastRow - 1, 1).getDisplayValues();
+  var firstBlank = 0;
+  for (var index = 0; index < values.length; index += 1) {
+    var current = cleanString_(values[index][0], 100);
+    if (current === normalized) return;
+    if (!current && !firstBlank) firstBlank = index + 2;
+  }
+  optionsSheet.getRange(firstBlank || (lastRow + 1), column).setValue(normalized);
+}
+
+function ensureQuestionIdFormula_(sheet) {
+  var maxRows = sheet.getMaxRows();
+  if (maxRows < 2) return;
+  sheet.getRange(2, 1, maxRows - 1, 1).clearContent();
+  sheet.getRange(2, 1).setFormula(
+    '=ARRAYFORMULA(IF(B2:B="","","q"&IF(ROW(B2:B)-1<10,TEXT(ROW(B2:B)-1,"00"),ROW(B2:B)-1)))'
+  );
+}
+
+function applyWorkbookValidation_(spreadsheet) {
+  var optionsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.options);
+  var subjectsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.subjects);
+  var questionsSheet = spreadsheet.getSheetByName(QUIZKING.sheets.questions);
+  var optionHeaders = getSheetHeaders_(optionsSheet);
+  var questionHeaders = getSheetHeaders_(questionsSheet);
+  var maxQuestionRows = questionsSheet.getMaxRows() - 1;
+
+  function optionRange_(header) {
+    var column = optionHeaders.indexOf(header) + 1;
+    return optionsSheet.getRange(2, column, Math.max(1, optionsSheet.getMaxRows() - 1), 1);
+  }
+
+  [
+    ["subjectId", "subjectId"],
+    ["category", "category"],
+    ["type", "type"],
+    ["kanjiLevel", "kanjiLevel"],
+    ["公開状態", "公開状態"]
+  ].forEach(function (definition) {
+    var column = questionHeaders.indexOf(definition[0]) + 1;
+    if (column <= 0) return;
+    var rule = SpreadsheetApp.newDataValidation()
+      .requireValueInRange(optionRange_(definition[1]), true)
+      .setAllowInvalid(false)
+      .build();
+    questionsSheet.getRange(2, column, maxQuestionRows, 1).setDataValidation(rule);
+  });
+
+  var subjectPublishColumn = getSheetHeaders_(subjectsSheet).indexOf("公開状態") + 1;
+  if (subjectPublishColumn > 0) {
+    var publishRule = SpreadsheetApp.newDataValidation()
+      .requireValueInRange(optionRange_("公開状態"), true)
+      .setAllowInvalid(false)
+      .build();
+    subjectsSheet.getRange(2, subjectPublishColumn, subjectsSheet.getMaxRows() - 1, 1)
+      .setDataValidation(publishRule);
+  }
+}
+
+function uniqueStrings_(values) {
+  var seen = {};
+  return values.map(function (value) {
+    return cleanString_(value, 100);
+  }).filter(function (value) {
+    if (!value || seen[value]) return false;
+    seen[value] = true;
+    return true;
+  }).sort();
+}
+
+function kanjiLevels_() {
+  return [
+    "漢検10級", "漢検9級", "漢検8級", "漢検7級", "漢検6級", "漢検5級",
+    "漢検4級", "漢検3級", "漢検準2級", "漢検2級", "漢検準1級", "漢検1級", "未設定"
+  ];
 }
 
 function getRankings_() {
@@ -568,6 +705,7 @@ function setupQuizKingSheets_(spreadsheet) {
   ensureSheet_(spreadsheet, QUIZKING.sheets.subjects, QUIZKING.headers.subjects);
   ensureSheet_(spreadsheet, QUIZKING.sheets.questions, QUIZKING.headers.questions);
   ensureSheet_(spreadsheet, QUIZKING.sheets.attempts, QUIZKING.headers.attempts);
+  ensureSheet_(spreadsheet, QUIZKING.sheets.options, QUIZKING.headers.options);
   var defaultSheet = spreadsheet.getSheetByName("シート1") || spreadsheet.getSheetByName("Sheet1");
   if (defaultSheet && spreadsheet.getSheets().length > 1) {
     spreadsheet.deleteSheet(defaultSheet);
@@ -596,7 +734,8 @@ function formatWorkbook_(spreadsheet) {
   [
     [QUIZKING.sheets.subjects, QUIZKING.headers.subjects.length],
     [QUIZKING.sheets.questions, QUIZKING.headers.questions.length],
-    [QUIZKING.sheets.attempts, QUIZKING.headers.attempts.length]
+    [QUIZKING.sheets.attempts, QUIZKING.headers.attempts.length],
+    [QUIZKING.sheets.options, QUIZKING.headers.options.length]
   ].forEach(function (definition) {
     var sheet = spreadsheet.getSheetByName(definition[0]);
     var lastColumn = Math.max(definition[1], sheet.getLastColumn());
@@ -616,6 +755,19 @@ function appendObjects_(sheet, headers, objects) {
   if (!objects || !objects.length) return;
   ensureHeaders_(sheet, headers);
   var sheetHeaders = getSheetHeaders_(sheet);
+  var usesAutomaticQuestionIds = sheet.getName() === QUIZKING.sheets.questions
+    && /^=ARRAYFORMULA/i.test(sheet.getRange(2, 1).getFormula());
+  if (usesAutomaticQuestionIds) {
+    var questionHeaders = sheetHeaders.slice(1);
+    var questionRows = objects.map(function (object) {
+      return questionHeaders.map(function (header) {
+        return object[header] === undefined ? "" : object[header];
+      });
+    });
+    var startRow = getLastDataRowInColumn_(sheet, 2) + 1;
+    sheet.getRange(startRow, 2, questionRows.length, questionHeaders.length).setValues(questionRows);
+    return;
+  }
   var rows = objects.map(function (object) {
     return sheetHeaders.map(function (header) {
       return object[header] === undefined ? "" : object[header];
@@ -630,9 +782,11 @@ function readObjects_(sheet, headers) {
   var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheetHeaders.length).getValues();
   return values.map(function (row) {
     var object = {};
+    sheetHeaders.forEach(function (header, index) {
+      if (header) object[header] = row[index];
+    });
     headers.forEach(function (header) {
-      var index = sheetHeaders.indexOf(header);
-      object[header] = index >= 0 ? row[index] : "";
+      if (object[header] === undefined) object[header] = "";
     });
     return object;
   });
@@ -662,6 +816,21 @@ function columnLabel_(columnNumber) {
     value = Math.floor(value / 26);
   }
   return label;
+}
+
+function getLastDataRowInColumn_(sheet, column) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return 1;
+  var values = sheet.getRange(2, column, lastRow - 1, 1).getDisplayValues();
+  for (var index = values.length - 1; index >= 0; index -= 1) {
+    if (cleanString_(values[index][0], 1000)) return index + 2;
+  }
+  return 1;
+}
+
+function questionIdForRow_(rowNumber) {
+  var number = Math.max(1, Number(rowNumber) - 1);
+  return "q" + (number < 10 ? ("0" + number) : number);
 }
 
 function readObjectsWithRows_(sheet, headers) {
@@ -731,6 +900,17 @@ function cleanId_(value) {
 function validQuestionType_(value) {
   var type = cleanString_(value, 20);
   return ["choice", "text", "truefalse", "multi"].indexOf(type) >= 0 ? type : "text";
+}
+
+function validKanjiLevel_(value) {
+  var level = cleanString_(value, 20);
+  return kanjiLevels_().indexOf(level) >= 0 ? level : "未設定";
+}
+
+function isPublicRow_(row) {
+  var status = cleanString_(row && row["公開状態"], 20);
+  if (status) return status === "公開";
+  return asBoolean_(row && row.isPublished, false);
 }
 
 function validColor_(value) {
@@ -858,7 +1038,7 @@ function seedSubjects_() {
       description: item[4],
       categoriesJson: JSON.stringify(item[5]),
       sortOrder: index,
-      isPublished: true,
+      "公開状態": "公開",
       updatedAt: now
     };
   });
@@ -901,8 +1081,9 @@ function seedQuestions_() {
       answer: item[6],
       explanation: item[7],
       difficulty: item[8],
+      kanjiLevel: item[1] === "japanese" && item[2] === "漢字" ? "未設定" : "",
       sortOrder: index,
-      isPublished: true,
+      "公開状態": "公開",
       updatedAt: now
     };
   });
