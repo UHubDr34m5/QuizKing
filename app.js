@@ -28,7 +28,7 @@ const SUBJECTS_FALLBACK = [
 ];
 
 const QUESTIONS_FALLBACK = [
-  { id: "q01", subjectId: "japanese", category: "漢字", type: "choice", prompt: "「進捗」の正しい読み方は？", choices: ["しんちょく", "しんぽ", "しんしょう", "しんたく"], answer: "しんちょく", explanation: "「捗」は『はかどる』とも読みます。", difficulty: 1 },
+  { id: "q01", subjectId: "japanese", category: "漢字", type: "choice", prompt: "「進捗」の正しい読み方は？", choices: ["しんちょく", "しんぽ", "しんしょう", "しんたく"], answer: "しんちょく", explanation: "「捗」は『はかどる』とも読みます。", difficulty: 1, kanjiLevel: "未設定" },
   { id: "q02", subjectId: "japanese", category: "四字熟語", type: "text", prompt: "多くの人が同じことを口にすることを表す四字熟語は？", answer: "異口同音", explanation: "異なる口から同じ音が出る、という意味です。", difficulty: 2 },
   { id: "q03", subjectId: "math", category: "計算", type: "choice", prompt: "2³ × 2⁴ の値は？", choices: ["32", "64", "128", "256"], answer: "128", explanation: "同じ底の積では指数を足し、2⁷=128です。", difficulty: 1 },
   { id: "q04", subjectId: "math", category: "確率・統計", type: "text", prompt: "公平なサイコロを1回投げ、偶数が出る確率を分数で答えてください。", answer: "1/2", explanation: "偶数は2・4・6の3通り。3/6=1/2です。", difficulty: 1 },
@@ -92,7 +92,7 @@ const state = {
   attempts: readStorage(STORAGE.attempts, []),
   rankings: [],
   adminKey: "",
-  kanjiDifficulty: 0,
+  kanjiDifficulty: "all",
   kanjiQuestionCount: 10,
   kanjiQuestions: [],
   kanjiIndex: 0,
@@ -193,6 +193,10 @@ function normalizeAnswer(value) {
 }
 
 const MULTI_PREFIX = "【多答】";
+const KANKEN_LEVELS = [
+  "漢検10級", "漢検9級", "漢検8級", "漢検7級", "漢検6級", "漢検5級",
+  "漢検4級", "漢検3級", "漢検準2級", "漢検2級", "漢検準1級", "漢検1級", "未設定",
+];
 
 function isMultiQuestion(question) {
   return question?.type === "multi" || String(question?.prompt || "").trim().startsWith(MULTI_PREFIX);
@@ -309,11 +313,27 @@ function isKanjiReadingQuestion(question) {
     && acceptedKanjiReadings(question.answer).length > 0;
 }
 
-function getKanjiReadingQuestions(difficulty = 0) {
+function questionKanjiLevel(question) {
+  const level = String(question?.kanjiLevel || "未設定");
+  return KANKEN_LEVELS.includes(level) ? level : "未設定";
+}
+
+function getKanjiReadingQuestions(level = "all") {
   return state.questions.filter((question) => {
     return isKanjiReadingQuestion(question)
-      && (!difficulty || Number(question.difficulty) === Number(difficulty));
+      && (level === "all" || questionKanjiLevel(question) === level);
   });
+}
+
+function kanjiLevelMultiplier(question) {
+  const index = KANKEN_LEVELS.indexOf(questionKanjiLevel(question));
+  if (index < 0 || questionKanjiLevel(question) === "未設定") return 1;
+  return index + 1;
+}
+
+function questionDifficultyLabel(question) {
+  if (isKanjiReadingQuestion(question)) return questionKanjiLevel(question);
+  return `難易度 ${"★".repeat(Number(question?.difficulty) || 1)}`;
 }
 
 function isKanjiReadingCorrect(response, question) {
@@ -867,7 +887,9 @@ function settingsMarkup() {
 function kanjiSetupMarkup() {
   const allQuestions = getKanjiReadingQuestions();
   const availableQuestions = getKanjiReadingQuestions(state.kanjiDifficulty);
-  const difficultyCounts = [1, 2, 3].map((difficulty) => getKanjiReadingQuestions(difficulty).length);
+  const levelOptions = KANKEN_LEVELS
+    .map((level) => [level, getKanjiReadingQuestions(level).length])
+    .filter(([, count]) => count > 0);
   const playableCount = Math.min(state.kanjiQuestionCount, availableQuestions.length);
   return `
     <section class="kanji-setup">
@@ -886,9 +908,9 @@ function kanjiSetupMarkup() {
         <div class="kanji-emblem" aria-hidden="true">読</div>
         <h2>挑戦内容</h2>
         <div class="setting-group">
-          <label>難易度</label>
+          <label>漢検級</label>
           <div class="segmented kanji-segmented">
-            ${[[0, `すべて (${allQuestions.length})`], [1, `★ (${difficultyCounts[0]})`], [2, `★★ (${difficultyCounts[1]})`], [3, `★★★ (${difficultyCounts[2]})`]].map(([value, label]) => `<button class="${state.kanjiDifficulty === value ? "active" : ""}" data-action="set-kanji-difficulty" data-value="${value}">${label}</button>`).join("")}
+            ${[["all", allQuestions.length], ...levelOptions].map(([value, count]) => `<button class="${state.kanjiDifficulty === value ? "active" : ""}" data-action="set-kanji-difficulty" data-value="${escapeHtml(value)}">${value === "all" ? "すべて" : escapeHtml(value)} (${count})</button>`).join("")}
           </div>
         </div>
         <div class="setting-group">
@@ -935,7 +957,7 @@ function kanjiGameMarkup() {
         </div>
         <div class="kanji-prompt-label">この漢字の読みは？</div>
         <div class="kanji-display" lang="ja">${escapeHtml(target)}</div>
-        <div class="kanji-difficulty">${"★".repeat(Number(question.difficulty) || 1)}<span>${escapeHtml(question.prompt)}</span></div>
+        <div class="kanji-difficulty">${escapeHtml(questionKanjiLevel(question))}<span>${escapeHtml(question.prompt)}</span></div>
         ${state.kanjiAnswered ? `
           <div class="kanji-feedback ${isCorrect ? "correct" : "incorrect"}" role="status">
             <strong>${isCorrect ? "正解！" : state.kanjiResponse ? "不正解" : "時間切れ"}</strong>
@@ -1002,7 +1024,7 @@ function quizMarkup() {
         <span class="timer">${state.timerEnabled ? `残り ${state.timeLeft}秒` : `${state.questionIndex + 1} / ${state.quizQuestions.length}`}</span>
       </div>
       <article class="quiz-card">
-        <div class="question-meta"><span>${escapeHtml(question.category)}・難易度 ${"★".repeat(Number(question.difficulty) || 1)}</span><span>QUESTION ${state.questionIndex + 1}</span></div>
+        <div class="question-meta"><span>${escapeHtml(question.category)}・${escapeHtml(questionDifficultyLabel(question))}</span><span>QUESTION ${state.questionIndex + 1}</span></div>
         ${imageUrl ? `
           <figure class="question-image-wrap">
             <img class="question-image" src="${escapeHtml(imageUrl)}" alt="問題画像：${escapeHtml(prompt)}" loading="eager" decoding="async" referrerpolicy="no-referrer">
@@ -1163,6 +1185,7 @@ function adminMarkup() {
             <div class="field"><label>正解</label><input name="answer" required maxlength="150"></div>
             <div class="field"><label>難易度</label><select name="difficulty"><option value="1">★</option><option value="2">★★</option><option value="3">★★★</option></select></div>
           </div>
+          <div class="field"><label>漢検級（国語／漢字のみ）</label><select name="kanjiLevel"><option value="未設定">未設定</option>${KANKEN_LEVELS.map((level) => `<option value="${escapeHtml(level)}">${escapeHtml(level)}</option>`).join("")}</select><small>漢字の読み問題だけ設定します。それ以外の問題では無視されます。</small></div>
           <div class="field"><label>解説</label><textarea name="explanation" required maxlength="500"></textarea></div>
           <button class="primary-button" type="submit">問題を追加</button>
         </form>
@@ -1171,7 +1194,7 @@ function adminMarkup() {
         <div>
           <p class="section-kicker">TRIVIA LIBRARY</p>
           <h2>「読む雑学」を追加・削除</h2>
-          <p class="admin-note">データベースの「Questions」シートで、分類が「読む雑学」の行を編集します。新規追加は既存行を複製してIDと本文を変更。削除は行を削除するか、「非公開」にしてください。</p>
+          <p class="admin-note">データベースの「Questions」シートで、分類が「読む雑学」の行を編集します。新規行はB列以降へ入力するとIDが自動生成されます。削除は行を削除するか、「非公開」にしてください。</p>
           <ul class="trivia-schema-list"><li><b>prompt</b>：表示する雑学本文</li><li><b>choicesJson</b>：カードの分類（例：<code>["科学"]</code>）</li><li><b>imageUrl</b>：任意の画像URL</li><li><b>公開状態</b>：「公開」で掲載、「非公開」で非表示</li></ul>
         </div>
         <a class="secondary-button sheet-edit-link" href="${QUIZKING_DATABASE_URL}" target="_blank" rel="noopener noreferrer">Questionsシートを開く ↗</a>
@@ -1369,10 +1392,10 @@ function finishQuiz() {
 
 function startKanjiGame() {
   let pool = getKanjiReadingQuestions(state.kanjiDifficulty);
-  if (!pool.length && state.kanjiDifficulty) {
-    state.kanjiDifficulty = 0;
+  if (!pool.length && state.kanjiDifficulty !== "all") {
+    state.kanjiDifficulty = "all";
     pool = getKanjiReadingQuestions();
-    showToast("選んだ難易度に問題がないため、すべての難易度から出題します。");
+    showToast("選んだ漢検級に問題がないため、すべての級から出題します。");
   }
   if (!pool.length) {
     showToast("公開中の漢字読み問題がありません。");
@@ -1403,7 +1426,7 @@ function submitKanjiAnswer(value) {
   if (correct) {
     state.kanjiStreak += 1;
     state.kanjiMaxStreak = Math.max(state.kanjiMaxStreak, state.kanjiStreak);
-    earned = (Number(question.difficulty) || 1) * 100 + state.kanjiTimeLeft * 10 + Math.max(0, state.kanjiStreak - 1) * 25;
+    earned = kanjiLevelMultiplier(question) * 100 + state.kanjiTimeLeft * 10 + Math.max(0, state.kanjiStreak - 1) * 25;
     state.kanjiScore += earned;
   } else {
     state.kanjiLives = Math.max(0, state.kanjiLives - 1);
@@ -1696,7 +1719,7 @@ app.addEventListener("click", (event) => {
     if (window.confirm("素因数分解ゲームを終了して数学へ戻りますか？")) navigate("prime");
   }
   if (action === "set-kanji-difficulty") {
-    state.kanjiDifficulty = Number(button.dataset.value);
+    state.kanjiDifficulty = button.dataset.value || "all";
     render();
   }
   if (action === "set-kanji-count") {
@@ -1809,7 +1832,7 @@ app.addEventListener("submit", (event) => {
     if (state.connected && !requireAdminKey()) return;
     const form = new FormData(event.target);
     const selectedType = String(form.get("type") || "choice");
-    const type = selectedType === "multi" ? "text" : selectedType;
+    const type = selectedType;
     let choices = String(form.get("choices") || "").split(/[,、\n]/).map((item) => item.trim()).filter(Boolean);
     if (type === "truefalse") choices = ["○", "×"];
     const rawImageUrl = String(form.get("imageUrl") || "").trim();
@@ -1829,6 +1852,7 @@ app.addEventListener("submit", (event) => {
       answer: String(form.get("answer") || "").trim(),
       explanation: String(form.get("explanation") || "").trim(),
       difficulty: Number(form.get("difficulty") || 1),
+      kanjiLevel: String(form.get("kanjiLevel") || "未設定"),
     };
     if (!question.subjectId || !question.category || !question.prompt || !question.answer || !question.explanation) return;
     if (type === "choice" && choices.length < 2) {
