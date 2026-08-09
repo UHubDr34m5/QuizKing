@@ -5,21 +5,20 @@
  * 例: https://script.google.com/macros/s/AKfycb.../exec
  */
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwRmGAlg181VIcwnXfeiZb9fNNQcZOdQVAAXEbb0q7DtoQ4c4BP8ak29voYo0X-ul5Q/exec";
-const QUIZKING_DATABASE_URL = "https://docs.google.com/spreadsheets/d/1TSx3kUyjb23L3vYFEcObURdQQ-MHFLpZEdm8O_za5Sw/edit#gid=510521834";
 const REFERENCE_DATA = window.QUIZKING_REFERENCE_DATA || { olympics: {}, movies: {}, comedy: {}, trivia: [] };
 
 const SUBJECTS_FALLBACK = [
-  { id: "japanese", name: "国語", icon: "本", color: "#b7f43a", description: "ことばの力を磨き、表現と読解の土台をつくろう。", categories: ["漢字", "四字熟語", "類義語・対義語", "諺", "故事成語", "文法", "文学"] },
+  { id: "japanese", name: "国語", icon: "本", color: "#ef5350", description: "ことばの力を磨き、表現と読解の土台をつくろう。", categories: ["漢字", "四字熟語", "類義語・対義語", "諺", "故事成語", "文法", "文学"] },
   { id: "math", name: "数学", icon: "∑", color: "#20e0ff", description: "計算から数学雑学まで、筋道立てて考える力を育てよう。", categories: ["計算", "数と式", "方程式", "関数", "図形", "確率・統計", "数学史・数学雑学", "素因数分解"] },
   { id: "english", name: "英語", icon: "ABC", color: "#9a70ff", description: "単語・文法・会話表現から英語圏の文化まで学ぼう。", categories: ["英単語", "英熟語", "文法", "発音", "会話表現", "英語圏文化"] },
   { id: "science", name: "理科", icon: "⚗", color: "#b7f43a", description: "自然の「なぜ？」を物理・化学・生物・地学から解き明かそう。", categories: ["物理", "化学", "生物", "地学", "科学史", "身近な科学"] },
-  { id: "social", name: "社会", icon: "◎", color: "#20e0ff", description: "歴史・地理・政治・経済をつなげて世界を理解しよう。", categories: ["日本史", "世界史", "地理", "政治", "経済", "時事", "世界遺産"] },
+  { id: "social", name: "社会", icon: "◎", color: "#ff9f43", description: "歴史・地理・政治・経済をつなげて世界を理解しよう。", categories: ["日本史", "世界史", "地理", "政治", "経済", "時事", "世界遺産"] },
   { id: "pe", name: "体育", icon: "●", color: "#ff6f91", description: "競技のルール、記録、歴史からスポーツをもっと楽しもう。", categories: ["球技", "陸上", "水泳", "体操", "武道", "ルール・記録", "スポーツ史", "オリンピック"] },
-  { id: "health", name: "保健", icon: "＋", color: "#57d6a5", description: "体と心を守るために、正しい健康知識を身につけよう。", categories: ["人体", "病気・予防", "応急手当", "心の健康", "栄養", "生活習慣"] },
-  { id: "informatics", name: "情報", icon: "</>", color: "#20e0ff", description: "コンピュータ、AI、情報モラルを実生活につなげよう。", categories: ["コンピュータ", "ネットワーク", "プログラミング", "情報モラル", "AI", "データ活用"] },
-  { id: "home", name: "家庭科", icon: "⌂", color: "#ffb84d", description: "衣食住、家計、子育てに役立つ生活の知恵を学ぼう。", categories: ["調理", "栄養", "被服", "住生活", "消費生活", "子育て"] },
+  { id: "health", name: "保健", icon: "＋", color: "#9a70ff", description: "体と心を守るために、正しい健康知識を身につけよう。", categories: ["人体", "病気・予防", "応急手当", "心の健康", "栄養", "生活習慣"] },
+  { id: "informatics", name: "情報", icon: "</>", color: "#8a94a6", description: "コンピュータ、AI、情報モラルを実生活につなげよう。", categories: ["コンピュータ", "ネットワーク", "プログラミング", "情報モラル", "AI", "データ活用"] },
+  { id: "home", name: "家庭科", icon: "⌂", color: "#ff6fae", description: "衣食住、家計、子育てに役立つ生活の知恵を学ぼう。", categories: ["調理", "栄養", "被服", "住生活", "消費生活", "子育て"] },
   { id: "music", name: "音楽", icon: "♪", color: "#dc72ff", description: "楽典、楽器、作曲家、世界の音楽を味わおう。", categories: ["楽典", "楽器", "作曲家", "日本音楽", "世界の音楽", "音楽史"] },
-  { id: "art", name: "美術", icon: "◇", color: "#ff6f91", description: "名作と表現技法を知り、見る力とつくる力を育てよう。", categories: ["絵画", "彫刻", "色彩", "デザイン", "日本美術", "西洋美術"] },
+  { id: "art", name: "美術", icon: "◇", color: "#57d6a5", description: "名作と表現技法を知り、見る力とつくる力を育てよう。", categories: ["絵画", "彫刻", "色彩", "デザイン", "日本美術", "西洋美術"] },
   { id: "calligraphy", name: "書道", icon: "墨", color: "#d9c8ff", description: "書体、名筆、漢字の成り立ちから文字文化を味わおう。", categories: ["楷書", "行書", "草書", "書道史", "漢字の成り立ち", "名筆"] },
   { id: "finance", name: "金融", icon: "¥", color: "#ffd75a", description: "家計、税金、投資、保険を知り、お金と上手につき合おう。", categories: ["家計", "貯蓄", "投資", "税金", "保険", "経済の仕組み", "詐欺対策"] },
   { id: "manners", name: "マナー", icon: "礼", color: "#57d6a5", description: "相手を思いやる作法と言葉遣いを場面別に学ぼう。", categories: ["食事", "冠婚葬祭", "ビジネス", "公共の場", "国際マナー", "言葉遣い"] },
@@ -91,7 +90,6 @@ const state = {
   stats: readStorage(STORAGE.stats, { totalXp: 0, streak: 0, totalAnswers: 0, correctAnswers: 0 }),
   attempts: readStorage(STORAGE.attempts, []),
   rankings: [],
-  adminKey: "",
   kanjiDifficulty: "all",
   kanjiQuestionCount: 10,
   kanjiQuestions: [],
@@ -209,7 +207,6 @@ function isReadingTrivia(question) {
 function getTriviaLibraryFacts() {
   const databaseFacts = state.questions
     .filter(isReadingTrivia)
-    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0))
     .map((question) => ({
       id: question.id,
       category: question.choices?.[0] || "雑学",
@@ -415,16 +412,6 @@ async function postAction(payload) {
   return requestId;
 }
 
-async function waitForMutationResult(requestId) {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    await new Promise((resolve) => window.setTimeout(resolve, 500));
-    const payload = await jsonp("mutationResult", { requestId });
-    if (payload?.pending) continue;
-    return payload;
-  }
-  throw new Error("更新結果の確認がタイムアウトしました。");
-}
-
 async function loadBootstrap() {
   if (!isConfigured()) {
     state.loading = false;
@@ -477,10 +464,10 @@ function headerMarkup() {
           <button class="${state.view === view ? "active" : ""}" data-action="navigate" data-view="${view}">${label}</button>
         `).join("")}
       </nav>
-      <button class="account" data-action="navigate" data-view="admin" aria-label="管理者ページを開く">
+      <button class="account" data-action="logout" aria-label="ログアウト">
         <span class="avatar">♛</span>
         <span>${escapeHtml(state.user?.name || "ゲスト")}</span>
-        <span>⌄</span>
+        <span>ログアウト</span>
       </button>
     </header>
   `;
@@ -1142,90 +1129,6 @@ function rankingMarkup() {
   `;
 }
 
-function adminMarkup() {
-  const questionRows = state.questions.slice(0, 50);
-  return `
-    <section class="page-head">
-      <p class="section-kicker">ADMIN CONSOLE</p>
-      <h1 class="page-title">管理者ページ</h1>
-      <p class="page-description">分野・問題を追加し、表示順をいつでも変更できます。</p>
-    </section>
-    ${!state.connected ? '<div class="connection-banner"><span class="connection-dot"></span>GAS未接続のため、現在の変更は画面上だけのプレビューです。</div>' : ""}
-    <div class="admin-key">
-      <div class="field"><label for="admin-key">管理者キー（このタブを閉じるまでのみ保持）</label><input id="admin-key" type="password" value="${escapeHtml(state.adminKey)}" autocomplete="current-password" placeholder="GASで設定した管理者キー"></div>
-      <button class="secondary-button" data-action="remember-admin-key">キーを適用</button>
-    </div>
-    <div class="admin-grid">
-      <section class="admin-card">
-        <h2>分野を追加</h2>
-        <p class="admin-note">分類は「、」またはカンマで区切って入力します。</p>
-        <form id="subject-form" class="form-grid">
-          <div class="form-grid two">
-            <div class="field"><label>分野名</label><input name="name" maxlength="30" required placeholder="例：防災"></div>
-            <div class="field"><label>アイコン</label><input name="icon" maxlength="4" placeholder="例：守"></div>
-          </div>
-          <div class="field"><label>分類</label><input name="categories" required placeholder="地震、台風、避難"></div>
-          <div class="field"><label>説明</label><textarea name="description" maxlength="200" placeholder="どんなことを学べる分野か"></textarea></div>
-          <div class="field"><label>テーマ色</label><input name="color" type="color" value="#20e0ff"></div>
-          <button class="primary-button" type="submit">分野を追加</button>
-        </form>
-      </section>
-      <section class="admin-card">
-        <h2>問題を追加</h2>
-        <form id="question-form" class="form-grid">
-          <div class="form-grid two">
-            <div class="field"><label>分野</label><select name="subjectId">${state.subjects.map((subject) => `<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join("")}</select></div>
-            <div class="field"><label>形式</label><select name="type"><option value="choice">択一</option><option value="text">記述</option><option value="truefalse">○×</option><option value="multi">多答</option></select></div>
-          </div>
-          <div class="field"><label>分類</label><input name="category" required placeholder="例：漢字"></div>
-          <div class="field"><label>問題文</label><textarea name="prompt" required maxlength="500"></textarea></div>
-          <div class="field"><label>問題画像URL（任意・HTTPS）</label><input name="imageUrl" type="url" inputmode="url" maxlength="2048" placeholder="https://example.com/question-image.jpg"><small>画像を表示する問題だけ入力します。公開状態で直接表示できる画像URLを指定してください。</small></div>
-          <div class="field"><label>選択肢／多答の正解一覧（カンマ・改行区切り）</label><textarea name="choices" placeholder="択一：答え1, 答え2…&#10;多答：1998年 長野, 2020年 東京…"></textarea><small>多答の別名は「正規表記::別名」の形式で登録できます。</small></div>
-          <div class="form-grid two">
-            <div class="field"><label>正解</label><input name="answer" required maxlength="150"></div>
-            <div class="field"><label>難易度</label><select name="difficulty"><option value="1">★</option><option value="2">★★</option><option value="3">★★★</option></select></div>
-          </div>
-          <div class="field"><label>漢検級（国語／漢字のみ）</label><select name="kanjiLevel"><option value="未設定">未設定</option>${KANKEN_LEVELS.map((level) => `<option value="${escapeHtml(level)}">${escapeHtml(level)}</option>`).join("")}</select><small>漢字の読み問題だけ設定します。それ以外の問題では無視されます。</small></div>
-          <div class="field"><label>解説</label><textarea name="explanation" required maxlength="500"></textarea></div>
-          <button class="primary-button" type="submit">問題を追加</button>
-        </form>
-      </section>
-      <section class="admin-card full trivia-admin-card">
-        <div>
-          <p class="section-kicker">TRIVIA LIBRARY</p>
-          <h2>「読む雑学」を追加・削除</h2>
-          <p class="admin-note">データベースの「Questions」シートで、分類が「読む雑学」の行を編集します。新規行はB列以降へ入力するとIDが自動生成されます。削除は行を削除するか、「非公開」にしてください。</p>
-          <ul class="trivia-schema-list"><li><b>prompt</b>：表示する雑学本文</li><li><b>choicesJson</b>：カードの分類（例：<code>["科学"]</code>）</li><li><b>imageUrl</b>：任意の画像URL</li><li><b>公開状態</b>：「公開」で掲載、「非公開」で非表示</li></ul>
-        </div>
-        <a class="secondary-button sheet-edit-link" href="${QUIZKING_DATABASE_URL}" target="_blank" rel="noopener noreferrer">Questionsシートを開く ↗</a>
-      </section>
-      <section class="admin-card">
-        <h2>分野の並び替え</h2>
-        <div class="sortable-list">
-          ${state.subjects.map((subject, index) => `
-            <div class="sortable-item"><span>${index + 1}</span><div><strong>${escapeHtml(subject.name)}</strong><small>${escapeHtml(subject.categories.slice(0, 3).join("・"))}</small></div><div class="sort-actions"><button data-action="move-subject" data-id="${escapeHtml(subject.id)}" data-direction="-1" aria-label="上へ">↑</button><button data-action="move-subject" data-id="${escapeHtml(subject.id)}" data-direction="1" aria-label="下へ">↓</button></div></div>
-          `).join("")}
-        </div>
-      </section>
-      <section class="admin-card">
-        <h2>問題の並び替え</h2>
-        <p class="admin-note">先頭50問を表示しています。</p>
-        <div class="sortable-list">
-          ${questionRows.map((question, index) => {
-            const subject = state.subjects.find((item) => item.id === question.subjectId);
-            return `<div class="sortable-item"><span>${index + 1}</span><div><strong>${escapeHtml(question.prompt)}</strong><small>${escapeHtml(subject?.name || question.subjectId)}／${escapeHtml(question.category)}</small></div><div class="sort-actions"><button data-action="move-question" data-id="${escapeHtml(question.id)}" data-direction="-1" aria-label="上へ">↑</button><button data-action="move-question" data-id="${escapeHtml(question.id)}" data-direction="1" aria-label="下へ">↓</button></div></div>`;
-          }).join("")}
-        </div>
-      </section>
-      <section class="admin-card full">
-        <h2>アカウント</h2>
-        <p class="admin-note">試作品ログインはこの端末内のニックネーム方式です。</p>
-        <button class="danger-button" data-action="logout">ログアウト</button>
-      </section>
-    </div>
-  `;
-}
-
 function pageMarkup() {
   const pages = {
     home: homeMarkup,
@@ -1238,7 +1141,6 @@ function pageMarkup() {
     result: resultMarkup,
     records: recordsMarkup,
     ranking: rankingMarkup,
-    admin: adminMarkup,
     reference: referenceMarkup,
     "trivia-library": triviaLibraryMarkup,
     prime: primeSetupMarkup,
@@ -1658,44 +1560,6 @@ async function loadRankings() {
   }
 }
 
-function requireAdminKey() {
-  if (!state.adminKey) {
-    showToast("先に管理者キーを入力してください。");
-    return false;
-  }
-  return true;
-}
-
-async function adminPost(payload, successMessage) {
-  if (!state.connected) {
-    showToast(`${successMessage}（サンプルモードのため端末内のみ）`);
-    return;
-  }
-  if (!requireAdminKey()) return;
-  try {
-    const requestId = await postAction({ ...payload, adminKey: state.adminKey });
-    const result = await waitForMutationResult(requestId);
-    if (!result?.ok) throw new Error(result?.error || "GASで更新できませんでした。");
-    showToast(`${successMessage}。スプレッドシートに反映しました。`);
-  } catch (error) {
-    console.warn(error);
-    showToast(error?.message || "送信に失敗しました。GASの公開設定を確認してください。");
-  }
-}
-
-function moveItem(type, id, direction) {
-  if (state.connected && !requireAdminKey()) return;
-  const collection = type === "subject" ? state.subjects : state.questions;
-  const index = collection.findIndex((item) => item.id === id);
-  const nextIndex = index + Number(direction);
-  if (index < 0 || nextIndex < 0 || nextIndex >= collection.length) return;
-  [collection[index], collection[nextIndex]] = [collection[nextIndex], collection[index]];
-  render();
-  const order = collection.map((item, sortOrder) => ({ id: item.id, sortOrder }));
-  const action = type === "subject" ? "adminReorderSubjects" : "adminReorderQuestions";
-  adminPost({ action, order }, "並び順を更新しました");
-}
-
 app.addEventListener("click", (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
@@ -1760,16 +1624,9 @@ app.addEventListener("click", (event) => {
   if (action === "exit-quiz") {
     if (window.confirm("クイズを終了してホームへ戻りますか？")) navigate("home");
   }
-  if (action === "remember-admin-key") {
-    state.adminKey = document.getElementById("admin-key")?.value || "";
-    showToast(state.adminKey ? "管理者キーをこのタブに適用しました。" : "管理者キーを入力してください。");
-  }
-  if (action === "move-subject") moveItem("subject", button.dataset.id, button.dataset.direction);
-  if (action === "move-question") moveItem("question", button.dataset.id, button.dataset.direction);
   if (action === "logout") {
     localStorage.removeItem(STORAGE.profile);
     state.user = null;
-    state.adminKey = "";
     state.view = "login";
     render();
   }
@@ -1808,65 +1665,6 @@ app.addEventListener("submit", (event) => {
     const answer = String(form.get("answer") || "").trim();
     if (!answer) { showToast("読みを入力してください。"); return; }
     submitKanjiAnswer(answer);
-  }
-  if (event.target.id === "subject-form") {
-    if (state.connected && !requireAdminKey()) return;
-    const form = new FormData(event.target);
-    const name = String(form.get("name") || "").trim();
-    const categories = String(form.get("categories") || "").split(/[,、\n]/).map((item) => item.trim()).filter(Boolean);
-    if (!name || !categories.length) return;
-    const subject = {
-      id: `field-${Date.now()}`,
-      name,
-      icon: String(form.get("icon") || "？").trim() || "？",
-      color: String(form.get("color") || "#20e0ff"),
-      description: String(form.get("description") || `${name}の知識を楽しく学ぼう。`).trim(),
-      categories,
-    };
-    state.subjects.push(subject);
-    event.target.reset();
-    render();
-    adminPost({ action: "adminAddSubject", subject }, "分野を追加しました");
-  }
-  if (event.target.id === "question-form") {
-    if (state.connected && !requireAdminKey()) return;
-    const form = new FormData(event.target);
-    const selectedType = String(form.get("type") || "choice");
-    const type = selectedType;
-    let choices = String(form.get("choices") || "").split(/[,、\n]/).map((item) => item.trim()).filter(Boolean);
-    if (type === "truefalse") choices = ["○", "×"];
-    const rawImageUrl = String(form.get("imageUrl") || "").trim();
-    const imageUrl = normalizeImageUrl(rawImageUrl);
-    if (rawImageUrl && !imageUrl) {
-      showToast("画像URLは https:// で始まる有効なURLを入力してください。");
-      return;
-    }
-    const question = {
-      id: `q-${Date.now()}`,
-      subjectId: String(form.get("subjectId") || ""),
-      category: String(form.get("category") || "").trim(),
-      type,
-      prompt: `${selectedType === "multi" ? `${MULTI_PREFIX} ` : ""}${String(form.get("prompt") || "").trim()}`,
-      imageUrl,
-      choices,
-      answer: String(form.get("answer") || "").trim(),
-      explanation: String(form.get("explanation") || "").trim(),
-      difficulty: Number(form.get("difficulty") || 1),
-      kanjiLevel: String(form.get("kanjiLevel") || "未設定"),
-    };
-    if (!question.subjectId || !question.category || !question.prompt || !question.answer || !question.explanation) return;
-    if (type === "choice" && choices.length < 2) {
-      showToast("択一問題には2つ以上の選択肢を入力してください。");
-      return;
-    }
-    if (selectedType === "multi" && choices.length < 2) {
-      showToast("多答問題には2項目以上の正解一覧を入力してください。");
-      return;
-    }
-    state.questions.push(question);
-    event.target.reset();
-    render();
-    adminPost({ action: "adminAddQuestion", question }, "問題を追加しました");
   }
 });
 
