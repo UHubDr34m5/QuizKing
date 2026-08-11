@@ -27,7 +27,7 @@ const SUBJECTS_FALLBACK = [
 ];
 
 const QUESTIONS_FALLBACK = [
-  { id: "q01", subjectId: "japanese", category: "漢字", type: "choice", prompt: "「進捗」の正しい読み方は？", choices: ["しんちょく", "しんぽ", "しんしょう", "しんたく"], answer: "しんちょく", explanation: "「捗」は『はかどる』とも読みます。", difficulty: 1, kanjiLevel: "未設定" },
+  { id: "q01", subjectId: "japanese", category: "漢字", type: "text", prompt: "計画の【進捗】を確認する。", choices: [], answer: "しんちょく", explanation: "「捗」は『はかどる』とも読みます。", difficulty: 1, kanjiLevel: "漢検2級" },
   { id: "q02", subjectId: "japanese", category: "四字熟語", type: "text", prompt: "多くの人が同じことを口にすることを表す四字熟語は？", answer: "異口同音", explanation: "異なる口から同じ音が出る、という意味です。", difficulty: 2 },
   { id: "q03", subjectId: "math", category: "計算", type: "choice", prompt: "2³ × 2⁴ の値は？", choices: ["32", "64", "128", "256"], answer: "128", explanation: "同じ底の積では指数を足し、2⁷=128です。", difficulty: 1 },
   { id: "q04", subjectId: "math", category: "確率・統計", type: "text", prompt: "公平なサイコロを1回投げ、偶数が出る確率を分数で答えてください。", answer: "1/2", explanation: "偶数は2・4・6の3通り。3/6=1/2です。", difficulty: 1 },
@@ -191,6 +191,7 @@ function normalizeAnswer(value) {
 }
 
 const MULTI_PREFIX = "【多答】";
+const KANJI_TIME_LIMIT = 15;
 const KANKEN_LEVELS = [
   "漢検10級", "漢検9級", "漢検8級", "漢検7級", "漢検6級", "漢検5級",
   "漢検4級", "漢検3級", "漢検準2級", "漢検2級", "漢検準1級", "漢検1級", "未設定",
@@ -289,8 +290,14 @@ function normalizeReading(value) {
 
 function extractKanjiTarget(question) {
   const prompt = String(question?.prompt || "");
+  const marked = [...prompt.matchAll(/【([^】]{1,24})】/g)]
+    .map((match) => match[1])
+    .filter((value) => /[\u3400-\u9fff々〆ヵヶ]/u.test(value));
+  if (marked.length) return marked.at(-1);
   if (!/(?:何と|なんと|どう)読む|読み方/.test(prompt)) return "";
-  const quoted = [...prompt.matchAll(/「([^」]{1,24})」/g)].map((match) => match[1]);
+  const quoted = [...prompt.matchAll(/[「『]([^」』]{1,24})[」』]/g)]
+    .map((match) => match[1])
+    .filter((value) => /[\u3400-\u9fff々〆ヵヶ]/u.test(value));
   const target = quoted.at(-1) || "";
   return /[\u3400-\u9fff々〆ヵヶ]/u.test(target) ? target : "";
 }
@@ -373,9 +380,12 @@ function jsonp(action, parameters = {}) {
     }
     const callbackName = `__quizKingCallback${Date.now()}${Math.random().toString(36).slice(2)}`;
     const script = document.createElement("script");
-    const timeout = window.setTimeout(() => finish(new Error("GASからの応答がタイムアウトしました。")), 12000);
+    let settled = false;
+    const timeout = window.setTimeout(() => finish(new Error("GASからの応答がタイムアウトしました。")), 30000);
 
     function finish(error, payload) {
+      if (settled) return;
+      settled = true;
       window.clearTimeout(timeout);
       delete window[callbackName];
       script.remove();
@@ -420,15 +430,26 @@ async function loadBootstrap() {
     return;
   }
   try {
-    const payload = await jsonp("bootstrap");
-    if (!payload || payload.ok !== true) throw new Error(payload?.error || "読み込みに失敗しました。");
+    let payload;
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        payload = await jsonp("bootstrap");
+        if (!payload || payload.ok !== true) throw new Error(payload?.error || "読み込みに失敗しました。");
+        break;
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) await new Promise((resolve) => window.setTimeout(resolve, 700 * (attempt + 1)));
+      }
+    }
+    if (!payload || payload.ok !== true) throw lastError || new Error("読み込みに失敗しました。");
     if (Array.isArray(payload.subjects) && payload.subjects.length) state.subjects = payload.subjects;
     if (Array.isArray(payload.questions) && payload.questions.length) state.questions = payload.questions;
     state.connected = true;
   } catch (error) {
     console.warn(error);
     state.connected = false;
-    showToast("GASに接続できないため、サンプル問題で表示しています。");
+    showToast("データベースとの同期に失敗しました。しばらくして再読み込みしてください。");
   } finally {
     state.loading = false;
     render();
@@ -446,7 +467,7 @@ function connectionMarkup() {
   if (state.connected) {
     return '<div class="connection-banner connected"><span class="connection-dot"></span>Googleスプレッドシートと接続中</div>';
   }
-  return '<div class="connection-banner"><span class="connection-dot"></span>サンプルモード：docs/app.js にGASのURLを設定するとデータが同期されます</div>';
+  return '<div class="connection-banner"><span class="connection-dot"></span>データベースと同期できませんでした。再読み込みしてください</div>';
 }
 
 function headerMarkup() {
@@ -922,8 +943,11 @@ function kanjiGameMarkup() {
   const target = extractKanjiTarget(question);
   const result = state.kanjiResults.at(-1);
   const isCorrect = state.kanjiAnswered && Boolean(result?.correct);
+  const isTimeUp = state.kanjiAnswered && !isCorrect && !state.kanjiResponse;
+  const outcomeClass = !state.kanjiAnswered ? "is-active" : isCorrect ? "is-correct" : isTimeUp ? "is-timeup" : "is-incorrect";
+  const displayClass = !state.kanjiAnswered ? "is-approaching" : isCorrect ? "is-correct" : isTimeUp ? "is-timeup" : "is-wrong";
   const progress = ((state.kanjiIndex + (state.kanjiAnswered ? 1 : 0)) / state.kanjiQuestions.length) * 100;
-  const timerProgress = Math.max(0, (state.kanjiTimeLeft / 15) * 100);
+  const timerProgress = Math.max(0, (state.kanjiTimeLeft / KANJI_TIME_LIMIT) * 100);
   const lives = Array.from({ length: 3 }, (_, index) => `<span class="${index < state.kanjiLives ? "alive" : "lost"}">♥</span>`).join("");
   return `
     <section class="kanji-game-stage">
@@ -932,7 +956,12 @@ function kanjiGameMarkup() {
         <div class="kanji-game-progress"><span style="width:${progress}%"></span></div>
         <div class="kanji-lives" aria-label="残りライフ ${state.kanjiLives}">${lives}</div>
       </div>
-      <article class="kanji-game-card ${state.kanjiAnswered ? (isCorrect ? "is-correct" : "is-incorrect") : ""}">
+      <article class="kanji-game-card ${outcomeClass}" style="--kanji-round-duration:${KANJI_TIME_LIMIT}s">
+        ${state.kanjiAnswered && !isCorrect ? `
+          <div class="kanji-impact ${isTimeUp ? "timeup" : "wrong"}" aria-hidden="true">
+            <span>${isTimeUp ? "TIME UP" : "MISS"}</span>
+          </div>
+        ` : ""}
         <div class="kanji-game-status">
           <span>第 ${state.kanjiIndex + 1} 問 / ${state.kanjiQuestions.length}</span>
           <strong>${state.kanjiScore.toLocaleString()} <small>PTS</small></strong>
@@ -943,7 +972,10 @@ function kanjiGameMarkup() {
           <strong>${state.kanjiTimeLeft}</strong><small>秒</small>
         </div>
         <div class="kanji-prompt-label">この漢字の読みは？</div>
-        <div class="kanji-display" lang="ja">${escapeHtml(target)}</div>
+        <div class="kanji-visual-field">
+          <span class="kanji-speed-lines" aria-hidden="true"></span>
+          <div class="kanji-display ${displayClass}" lang="ja">${escapeHtml(target)}</div>
+        </div>
         <div class="kanji-difficulty">${escapeHtml(questionKanjiLevel(question))}<span>${escapeHtml(question.prompt)}</span></div>
         ${state.kanjiAnswered ? `
           <div class="kanji-feedback ${isCorrect ? "correct" : "incorrect"}" role="status">
@@ -1307,7 +1339,7 @@ function startKanjiGame() {
   state.kanjiIndex = 0;
   state.kanjiResponse = "";
   state.kanjiAnswered = false;
-  state.kanjiTimeLeft = 15;
+  state.kanjiTimeLeft = KANJI_TIME_LIMIT;
   state.kanjiLives = 3;
   state.kanjiScore = 0;
   state.kanjiStreak = 0;
@@ -1353,7 +1385,7 @@ function nextKanjiQuestion() {
   state.kanjiIndex += 1;
   state.kanjiResponse = "";
   state.kanjiAnswered = false;
-  state.kanjiTimeLeft = 15;
+  state.kanjiTimeLeft = KANJI_TIME_LIMIT;
   render();
 }
 
@@ -1365,7 +1397,7 @@ function startKanjiTimer() {
     const timerBar = timer?.querySelector(".kanji-timer-bar");
     if (timer) timer.setAttribute("aria-label", `残り時間 ${Math.max(0, state.kanjiTimeLeft)}秒`);
     if (timerNumber) timerNumber.textContent = String(Math.max(0, state.kanjiTimeLeft));
-    if (timerBar) timerBar.style.width = `${Math.max(0, (state.kanjiTimeLeft / 15) * 100)}%`;
+    if (timerBar) timerBar.style.width = `${Math.max(0, (state.kanjiTimeLeft / KANJI_TIME_LIMIT) * 100)}%`;
     if (state.kanjiTimeLeft <= 0) {
       window.clearInterval(timerId);
       submitKanjiAnswer("");
