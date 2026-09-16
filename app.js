@@ -586,48 +586,66 @@ function homeMarkup() {
     : 0;
   const level = Math.floor(state.stats.totalXp / 500) + 1;
   const kanjiQuestionCount = getKanjiReadingQuestions().length;
+  const publishedQuestionCount = state.questions.filter((question) => !isReadingTrivia(question)).length;
+  const userName = escapeHtml(state.user?.name || "ゲスト");
 
   return `
-    <section class="hero">
-      <div>
-        <p class="eyebrow">毎日ひとつ、知識が増える</p>
-        <h1>知識を武器に、<br><span>クイズ王へ。</span></h1>
-        <p class="hero-lead">学校の勉強から雑学まで。楽しく挑戦して、<br>知識の世界を広げよう。</p>
-        <button class="primary-button" data-action="select-subject" data-subject="">全分野から挑戦 <span>→</span></button>
+    <section class="home-command" aria-labelledby="home-command-title">
+      <div class="home-command-hero">
+        <div class="home-command-copy">
+          <p class="eyebrow">WELCOME BACK, ${userName}</p>
+          <h1 id="home-command-title">今日も一歩、<br><span>クイズ王へ。</span></h1>
+          <p>まずは今日の5問から。新しい知識に挑戦しながら、<br>あなたの得意と苦手を少しずつ育てよう。</p>
+          <button class="primary-button home-command-primary" data-action="quick-quiz">今日の学習をはじめる <span>→</span></button>
+        </div>
+        <aside class="home-training-panel" aria-label="今日のトレーニング">
+          <div class="home-training-head">
+            <div><span>TODAY'S TRAINING</span><strong>今日のトレーニング</strong></div>
+            <em>約3分</em>
+          </div>
+          <button class="home-daily-card" data-action="quick-quiz">
+            <span class="home-daily-icon" aria-hidden="true">⚡</span>
+            <span class="home-daily-copy"><small>DAILY CHALLENGE</small><strong>全分野から5問に挑戦</strong><em>全問正解で50XPボーナス</em></span>
+            <span class="home-daily-arrow" aria-hidden="true">→</span>
+          </button>
+          <button class="home-review-preview" data-action="show-upcoming" data-feature="苦手問題の自動復習">
+            <span class="home-review-icon" aria-hidden="true">↻</span>
+            <span><small>AUTO REVIEW</small><strong>苦手問題の自動復習</strong><em>回答履歴から復習問題を自動で選びます</em></span>
+            <b>準備中</b>
+          </button>
+          <div class="home-mini-stats" aria-label="学習状況">
+            <div><span>LEVEL</span><strong>${level}</strong></div>
+            <div><span>正答率</span><strong>${accuracy}%</strong></div>
+            <div><span>連続学習</span><strong>${state.stats.streak}日</strong></div>
+            <div><span>合計XP</span><strong>${state.stats.totalXp.toLocaleString()}</strong></div>
+          </div>
+        </aside>
       </div>
-      <aside class="progress-panel" aria-label="学習状況">
-        <div class="level-row">
-          <div class="level-orb"><strong><small>LEVEL</small>${level}</strong></div>
-          <div class="level-meta"><span>現在の称号</span><strong>${level >= 10 ? "知識の騎士" : "クイズ冒険者"}</strong></div>
-        </div>
-        <div class="stat-grid">
-          <div><span>合計XP</span><strong>${state.stats.totalXp.toLocaleString()}</strong></div>
-          <div><span>正答率</span><strong>${accuracy}%</strong></div>
-          <div><span>連続学習</span><strong>${state.stats.streak}日</strong></div>
-          <div><span>挑戦回数</span><strong>${state.attempts.length}回</strong></div>
-        </div>
-      </aside>
-    </section>
-    <section class="challenge-strip">
-      <div><span class="challenge-icon">⚡</span><div><p>今日のデイリーチャレンジ</p><strong>全分野から5問・全問正解で50XPボーナス</strong></div></div>
-      <button data-action="quick-quiz">挑戦する →</button>
-    </section>
-    <section class="kanji-feature" aria-labelledby="kanji-feature-title">
-      <div class="kanji-feature-copy">
-        <p class="section-kicker">SPECIAL GAME</p>
-        <h2 id="kanji-feature-title"><span>漢字</span>キング</h2>
-        <p>大きく表示される漢字の読みを、15秒以内に入力。<br>3つのライフで連続正解を目指そう。</p>
-        <div class="kanji-feature-stats">
-          <span><strong>${kanjiQuestionCount}</strong> 語 公開中</span>
-          <span><strong>${state.kanjiBest.score.toLocaleString()}</strong> BEST SCORE</span>
-        </div>
-        <button class="kanji-feature-button" data-action="navigate" data-view="kanji" ${kanjiQuestionCount ? "" : "disabled"}>挑戦する <span>→</span></button>
+      <div class="home-mode-grid" aria-label="クイズモード">
+        <button class="home-mode-card featured" data-action="show-upcoming" data-feature="音声早押しクイズ">
+          <span class="home-mode-icon" aria-hidden="true">◉</span>
+          <span class="home-mode-badge">COMING SOON</span>
+          <strong>音声早押しクイズ</strong>
+          <small>問題を聞いて、ボタンで回答。読み上げ速度も選べる予定です。</small>
+          <i aria-hidden="true">→</i>
+        </button>
+        <button class="home-mode-card" data-action="select-subject" data-subject="">
+          <span class="home-mode-icon" aria-hidden="true">✦</span>
+          <strong>全分野クイズ</strong>
+          <small>${state.subjects.length}分野から、問題数や難易度を選んで挑戦。</small>
+          <i aria-hidden="true">→</i>
+        </button>
+        <button class="home-mode-card" data-action="navigate" data-view="kanji" ${kanjiQuestionCount ? "" : "disabled"}>
+          <span class="home-mode-icon kanji" aria-hidden="true">読</span>
+          <strong>漢字キング</strong>
+          <small>${kanjiQuestionCount.toLocaleString()}語公開中・BEST ${state.kanjiBest.score.toLocaleString()}点</small>
+          <i aria-hidden="true">→</i>
+        </button>
       </div>
-      <div class="kanji-feature-visual" aria-hidden="true">
-        <span class="kanji-orbit orbit-one">読</span>
-        <span class="kanji-orbit orbit-two">問</span>
-        <strong>漢</strong>
-        <small>よみを<br>こたえよ</small>
+      <div class="home-library-status" aria-label="問題ライブラリの状態">
+        <span><b>${publishedQuestionCount.toLocaleString()}問</b> 読み込み済み</span>
+        <span><b>${state.connected ? "オンライン" : "サンプル"}</b> データ</span>
+        <span class="future"><b>GitHub問題ライブラリ</b> 移行準備中</span>
       </div>
     </section>
     <section aria-labelledby="subjects-heading">
@@ -1686,6 +1704,9 @@ app.addEventListener("click", (event) => {
   if (!button) return;
   const { action } = button.dataset;
   if (action === "navigate") navigate(button.dataset.view);
+  if (action === "show-upcoming") {
+    showToast(`${button.dataset.feature || "この機能"}は、次の開発ステップで追加予定です。`);
+  }
   if (action === "open-reference") {
     const section = button.dataset.section;
     state.referenceSection = section;
