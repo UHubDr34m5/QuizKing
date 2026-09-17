@@ -596,6 +596,7 @@
       .mode-card[aria-disabled="true"] { opacity: 0.72; }
     }
   </style>
+  <link rel="stylesheet" href="./hontai.css?v=20260918-2">
 </head>
 <body>
   <div class="app">
@@ -605,7 +606,7 @@
         <button class="nav-item" type="button" aria-current="page" aria-label="ホーム">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg>
         </button>
-        <button class="nav-item" type="button" disabled aria-label="クイズ（問題追加後に利用可能）">
+        <button class="nav-item" type="button" data-open-hontai aria-label="本屋大賞クイズ">
           <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7Z"/></svg>
         </button>
         <button class="nav-item" type="button" disabled aria-label="成績（回答後に利用可能）">
@@ -632,17 +633,18 @@
         </div>
       </header>
 
+      <div id="home-view">
       <div class="dashboard">
         <section class="hero panel" aria-labelledby="hero-title">
           <span class="eyebrow">ROAD TO QUIZ KING</span>
-          <h1 id="hero-title">0問から、<br><em>王座</em>へ。</h1>
+          <h1 id="hero-title">47問から、<br><em>王座</em>へ。</h1>
           <p class="hero-copy">知識を積み上げ、苦手を攻略する。<br>あなた専用のクイズトレーニングを始めよう。</p>
           <div class="hero-action">
-            <button class="start-button" type="button" disabled aria-describedby="start-note">
+            <button class="start-button" type="button" data-open-hontai aria-describedby="start-note">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7Z"/></svg>
               クイズを始める
             </button>
-            <span class="empty-note" id="start-note">問題を追加すると<br>プレイできます</span>
+            <span class="empty-note" id="start-note">本屋大賞クイズ<br>公開中</span>
           </div>
         </section>
 
@@ -657,17 +659,22 @@
           <div class="stats">
             <div class="stat"><strong>—</strong><span>正答率</span></div>
             <div class="stat"><strong>0</strong><span>連続正解</span></div>
-            <div class="stat"><strong>0</strong><span>登録問題</span></div>
+            <div class="stat"><strong>47</strong><span>登録問題</span></div>
           </div>
         </aside>
       </div>
 
       <div class="training-heading">
         <h2>TRAINING MODE</h2>
-        <span>問題登録後に解放されます</span>
+        <span>本屋大賞クイズを公開中</span>
       </div>
 
       <section class="training-grid" aria-label="トレーニングモード">
+        <button class="mode-card hq-mode" type="button" data-open-hontai>
+          <span class="mode-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c-3-2-7-2-10-1v15c3-1 7-1 10 1m0-15c3-2 7-2 10-1v15c-3-1-7-1-10 1V5Z"/></svg></span>
+          <strong>本屋大賞</strong>
+          <span class="hq-mode-description">歴代の作品名と作者名を<br>フリック入力で答えよう</span>
+        </button>
         <article class="mode-card" aria-disabled="true">
           <div class="mode-icon">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7Z"/><path d="m19 17 .8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8Z"/></svg>
@@ -690,7 +697,12 @@
           <p>制限時間内の正解数に挑戦</p>
         </article>
       </section>
+      </div>
+      <div id="hontai-view" hidden></div>
     </main>
   </div>
+  <script src="./hontai-data.js?v=20260918-2"></script>
+  <script src="./hontai.js?v=20260918-2"></script>
+  <script src="./hontai-page.js?v=20260918-2"></script>
 </body>
 </html>
