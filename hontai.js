@@ -27,19 +27,18 @@ window.HontaiQuiz = (() => {
   const button = (action, label, attrs = '') => `<button type="button" data-hq="${action}" ${attrs}>${label}</button>`;
   function bestText() { const best = memory.readBest(storage(), books); return best ? `${best.tries}トライ` : 'まだ記録なし'; }
   function menuMarkup() {
-    return `<p class="hq-intro">思い出して書く。めくって揃える。<br>今日の挑戦を選んでください。</p>
-      <div class="hq-modes">
-        ${button('start-perfect', '<span class="hq-mode-number">01 / RECALL</span><strong>パーフェクト暗記モード</strong><span>年代を手がかりに、<br>作品名と作者名を答える。</span><small>最初は「本屋大賞が始まった年は？」</small><b aria-hidden="true">挑戦する →</b>', 'class="hq-choice"')}
+    return `<div class="hq-modes">
+        ${button('start-perfect', '<span class="hq-mode-number">01 / RECALL</span><strong>パーフェクト暗記モード</strong><span>年代を手がかりに、<br>作品名と作者名を答える。</span><b aria-hidden="true">挑戦する →</b>', 'class="hq-choice"')}
         ${button('start-memory', `<span class="hq-mode-number">02 / MATCH</span><strong>神経衰弱モード</strong><span>西暦・作品・作者の3枚を揃えて、<br>自分の記録を超えよう。</span><small>自己ベスト：${bestText()}</small><b aria-hidden="true">挑戦する →</b>`, 'class="hq-choice"')}
       </div><p class="hq-note">神経衰弱の自己ベストは、この端末のブラウザに保存されます。</p>
       <section class="hq-answer-list" aria-labelledby="hq-answer-list-title">
-        <h2 id="hq-answer-list-title">年別の本屋大賞一覧（答え）</h2>
+        <h2 id="hq-answer-list-title">年別の本屋大賞一覧</h2>
         <p class="hq-note">挑戦の前に、歴代の受賞作を確認できます。</p>
         <table class="hq-reference-table">
           <caption class="hq-sr">本屋大賞の受賞年・作品名・作者名</caption>
           <colgroup><col class="hq-reference-year"><col><col class="hq-reference-author"></colgroup>
           <thead><tr><th scope="col">西暦</th><th scope="col">作品名</th><th scope="col">作者名</th></tr></thead>
-          <tbody>${[...books].sort((a, b) => a.year - b.year).map(b => `<tr><th scope="row">${b.year}</th><td>${esc(b.title)}</td><td>${esc(b.author)}</td></tr>`).join('')}</tbody>
+          <tbody>${[...books].sort((a, b) => a.year - b.year).map(b => `<tr><th scope="row">${b.year}</th><td>${button('synopsis', esc(b.title), `data-index="${books.indexOf(b)}" class="hq-book-link" aria-label="${esc(b.title)}のあらすじ"`)}</td><td>${esc(b.author)}</td></tr>`).join('')}</tbody>
         </table>
       </section>`;
   }
@@ -56,7 +55,7 @@ window.HontaiQuiz = (() => {
   function perfectMarkup() {
     if (stage === 'gate') return `<form id="hq-gate-form" class="hq-gate">
       <span class="hq-step">最初の一問</span><h2>本屋大賞が始まった年は？</h2>
-      <p>西暦で答えてください。<br>正解すると歴代受賞作のクイズへ。間違えると終了です。</p>
+      <p>西暦で答えてください。</p>
       <label class="hq-year-label">西暦<input id="hq-year" name="year" type="text" inputmode="numeric" autocomplete="off" maxlength="4" value="${esc(year)}" aria-describedby="hq-gate-notice" placeholder="4桁で入力"><span>年</span></label>
       <p id="hq-gate-notice" class="hq-notice" role="status">${esc(notice)}</p><button class="hq-primary" type="submit">解答する</button></form>`;
     if (stage === 'failed') return `<div class="hq-gate"><span class="hq-step">チャレンジ終了</span><h2>正解は2004年でした</h2><p>あなたの解答：${esc(year)}</p><p>第1回の本屋大賞は2004年に開催されました。</p><a href="${books[0].awardSource}" target="_blank" rel="noopener">公式の発表を見る ↗</a><div class="hq-end-actions">${button('retry-perfect', 'もう一度挑戦', 'class="hq-primary"')}</div></div>`;

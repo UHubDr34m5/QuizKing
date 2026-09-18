@@ -229,7 +229,7 @@
 
     .dashboard {
       display: grid;
-      grid-template-columns: minmax(0, 1.55fr) minmax(20.5rem, 0.85fr);
+      grid-template-columns: minmax(0, 1fr);
       gap: 1.35rem;
     }
 
@@ -635,19 +635,6 @@
 
       <div id="home-view">
       <div class="dashboard">
-        <section class="hero panel" aria-labelledby="hero-title">
-          <span class="eyebrow">ROAD TO QUIZ KING</span>
-          <h1 id="hero-title">47問から、<br><em>王座</em>へ。</h1>
-          <p class="hero-copy">知識を積み上げ、苦手を攻略する。<br>あなた専用のクイズトレーニングを始めよう。</p>
-          <div class="hero-action">
-            <button class="start-button" type="button" data-open-hontai aria-describedby="start-note">
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7Z"/></svg>
-              クイズを始める
-            </button>
-            <span class="empty-note" id="start-note">本屋大賞クイズ<br>公開中</span>
-          </div>
-        </section>
-
         <aside class="score panel" aria-labelledby="score-title">
           <div class="panel-heading">
             <h2 id="score-title">現在のステータス</h2>
@@ -673,28 +660,24 @@
         <button class="mode-card hq-mode" type="button" data-open-hontai>
           <span class="mode-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c-3-2-7-2-10-1v15c3-1 7-1 10 1m0-15c3-2 7-2 10-1v15c-3-1-7-1-10 1V5Z"/></svg></span>
           <strong>本屋大賞</strong>
-          <span class="hq-mode-description">パーフェクト暗記モードと<br>神経衰弱モードで挑戦</span>
         </button>
         <article class="mode-card" aria-disabled="true">
           <div class="mode-icon">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7Z"/><path d="m19 17 .8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8Z"/></svg>
           </div>
           <h3>ランダムチャレンジ</h3>
-          <p>全分野からランダムに出題</p>
         </article>
         <article class="mode-card" aria-disabled="true">
           <div class="mode-icon">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>
           </div>
           <h3>苦手克服</h3>
-          <p>不正解問題を集中トレーニング</p>
         </article>
         <article class="mode-card" aria-disabled="true">
           <div class="mode-icon">
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22c4.4 0 8-3.1 8-7.5 0-3-1.6-5.7-4.1-7.2.1 2.1-.7 3.7-2.2 4.9.1-4.1-2.2-7.5-5.5-9.6.2 3.6-2.2 5.6-3.4 8C3.7 13.1 4 16 5.6 18.2 7 20.2 9.2 22 12 22Z"/></svg>
           </div>
           <h3>タイムアタック</h3>
-          <p>制限時間内の正解数に挑戦</p>
         </article>
       </section>
       </div>
@@ -703,7 +686,7 @@
   </div>
   <script src="./hontai-data.js?v=20260918-4"></script>
   <script src="./hontai-memory.js?v=20260918-4"></script>
-  <script src="./hontai.js?v=20260918-4"></script>
+  <script src="./hontai.js?v=20260918-5"></script>
   <script src="./hontai-page.js?v=20260918-4"></script>
 </body>
 </html>
