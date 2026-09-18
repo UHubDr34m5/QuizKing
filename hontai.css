@@ -129,3 +129,22 @@
   .hq-picks > div { font-size: 11px; }
 }
 @media (prefers-reduced-motion: no-preference) { .hq-card.is-open { animation: hq-reveal .18s ease-out; } @keyframes hq-reveal { from { opacity: .65; } to { opacity: 1; } } }
+
+/* Always-visible answer reference below the mode choices. */
+.hq-answer-list { margin-top: 40px; padding-top: 28px; border-top: 1px solid #45536b; }
+.hq-answer-list h2 { margin: 0; font-size: clamp(18px, 2.5vw, 24px); line-height: 1.7; }
+.hq-reference-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 20px; font-size: 15px; line-height: 1.8; }
+.hq-reference-year { width: 76px; }
+.hq-reference-author { width: 28%; }
+.hq-reference-table th, .hq-reference-table td { padding: 16px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid #34445a; overflow-wrap: anywhere; }
+.hq-reference-table thead { color: #cdd8e6; background: #1a2b40; font-size: 12px; }
+.hq-reference-table tbody th { color: #e6bf77; font-weight: 600; }
+.hq-reference-table tbody tr:nth-child(even) { background: #1a2b404d; }
+@media (max-width: 720px) {
+  .hq-answer-list { margin-top: 30px; padding-top: 22px; }
+  .hq-reference-table { font-size: 14px; }
+  .hq-reference-year { width: 48px; }
+  .hq-reference-author { width: 29%; }
+  .hq-reference-table th, .hq-reference-table td { padding: 12px 6px; }
+  .hq-reference-table tbody th { font-size: 12px; }
+}

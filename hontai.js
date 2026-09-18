@@ -31,7 +31,17 @@ window.HontaiQuiz = (() => {
       <div class="hq-modes">
         ${button('start-perfect', '<span class="hq-mode-number">01 / RECALL</span><strong>パーフェクト暗記モード</strong><span>年代を手がかりに、<br>作品名と作者名を答える。</span><small>最初は「本屋大賞が始まった年は？」</small><b aria-hidden="true">挑戦する →</b>', 'class="hq-choice"')}
         ${button('start-memory', `<span class="hq-mode-number">02 / MATCH</span><strong>神経衰弱モード</strong><span>西暦・作品・作者の3枚を揃えて、<br>自分の記録を超えよう。</span><small>自己ベスト：${bestText()}</small><b aria-hidden="true">挑戦する →</b>`, 'class="hq-choice"')}
-      </div><p class="hq-note">神経衰弱の自己ベストは、この端末のブラウザに保存されます。</p>`;
+      </div><p class="hq-note">神経衰弱の自己ベストは、この端末のブラウザに保存されます。</p>
+      <section class="hq-answer-list" aria-labelledby="hq-answer-list-title">
+        <h2 id="hq-answer-list-title">年別の本屋大賞一覧（答え）</h2>
+        <p class="hq-note">挑戦の前に、歴代の受賞作を確認できます。</p>
+        <table class="hq-reference-table">
+          <caption class="hq-sr">本屋大賞の受賞年・作品名・作者名</caption>
+          <colgroup><col class="hq-reference-year"><col><col class="hq-reference-author"></colgroup>
+          <thead><tr><th scope="col">西暦</th><th scope="col">作品名</th><th scope="col">作者名</th></tr></thead>
+          <tbody>${[...books].sort((a, b) => a.year - b.year).map(b => `<tr><th scope="row">${b.year}</th><td>${esc(b.title)}</td><td>${esc(b.author)}</td></tr>`).join('')}</tbody>
+        </table>
+      </section>`;
   }
   function inputCell(index, field) {
     const b = books[index], value = answers[index][field];
