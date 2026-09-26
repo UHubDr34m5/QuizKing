@@ -39,23 +39,33 @@ window.HontaiMemory = (() => {
     game.phase = game.removed.length === game.deck.length ? 'complete' : 'choosing';
     return true;
   }
-  function recordKey(books) {
+  function recordKey(books, scope) {
+    if (scope) return `quizking_memory_best_v2_${scope}_${books.length}`;
     return `quizking_hontai_memory_best_v1_${books.map(b => b.year).join('_')}`;
   }
-  function readBest(storage, books) {
+  function readBest(storage, books, scope) {
     try {
-      const record = JSON.parse(storage.getItem(recordKey(books)) || 'null');
+      const record = JSON.parse(storage.getItem(recordKey(books, scope)) || 'null');
       return Number.isSafeInteger(record?.tries) && record.tries >= books.length ? record : null;
     } catch { return null; }
   }
-  function saveBest(storage, books, tries) {
-    const previous = readBest(storage, books);
+  function saveBest(storage, books, tries, scope) {
+    const previous = readBest(storage, books, scope);
     if (!Number.isSafeInteger(tries) || tries < books.length) return { previous, best: previous, saved: false };
     const best = !previous || tries < previous.tries ? { tries, completedAt: new Date().toISOString() } : previous;
     try {
-      storage.setItem(recordKey(books), JSON.stringify(best));
+      storage.setItem(recordKey(books, scope), JSON.stringify(best));
       return { previous, best, saved: true };
     } catch { return { previous, best, saved: false }; }
   }
-  return { shuffledDeck, isMatch, createGame, flip, resolve, recordKey, readBest, saveBest };
+  function sampleEntries(entries, count, random = Math.random) {
+    if (!Number.isInteger(count) || count < 2 || count > entries.length) throw new RangeError('Invalid count');
+    const pool = [...entries];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, count).sort((a, b) => a.year - b.year);
+  }
+  return { sampleEntries, shuffledDeck, isMatch, createGame, flip, resolve, recordKey, readBest, saveBest };
 })();

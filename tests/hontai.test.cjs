@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const context = {window:{}, document:{addEventListener(){}}, clearTimeout, setTimeout};
 vm.createContext(context);
-for (const name of ['hontai-data.js', 'hontai-memory.js', 'hontai.js']) vm.runInContext(fs.readFileSync(`${__dirname}/../${name}`,'utf8'), context);
+for (const name of ['hontai-data.js', 'elements-data.js', 'hontai-ruby.js', 'hontai-memory.js', 'hontai.js']) vm.runInContext(fs.readFileSync(`${__dirname}/../${name}`,'utf8'), context);
 const {HONTAI_BOOKS:books,HontaiQuiz:quiz,HontaiMemory:memory} = context.window;
 test('All official entries remain strictly gradable', () => {
   assert.equal(books.length,23);
@@ -88,4 +88,47 @@ test('Records survive rereading, only improve, and tolerate corrupt or blocked s
   assert.equal(memory.readBest(storage,books),null);
   const denied = {getItem(){throw Error('blocked')},setItem(){throw Error('blocked')}};
   assert.equal(memory.saveBest(denied,books,30).saved,false);
+});
+
+test('Ruby preserves every official spelling and covers all kanji', () => {
+  books.forEach(b => ['title','author'].forEach(field => {
+    const html=context.window.HontaiRuby.render(b,field);
+    assert.equal(html.replace(/<rt>.*?<\/rt>|<rp>.*?<\/rp>/g,'').replace(/<[^>]*>/g,''),b[field]);
+    assert.ok(!/[一-龯々]/.test(html.replace(/<ruby>.*?<\/ruby>/g,'')),`${b.year} ${field}`);
+  }));
+});
+test('Random samples have exact count, no duplicates, reject invalid sizes and preserve source',()=>{
+  for (const count of [2,5,books.length]) {
+    const selected=memory.sampleEntries(books,count,()=>0);
+    assert.equal(selected.length,count);
+    assert.equal(new Set(selected.map(b=>b.year)).size,count);
+    assert.equal(memory.createGame(selected).deck.length,count*3);
+  }
+  assert.notDeepEqual(memory.sampleEntries(books,2,()=>0).map(b=>b.year),memory.sampleEntries(books,2,()=>0.999).map(b=>b.year));
+  for(const n of [1,24,2.5,NaN]) assert.throws(()=>memory.sampleEntries(books,n));
+  assert.equal(books[0].year,2004);
+});
+test('Element data has 118 unique symbols and complete consecutive atomic numbers',()=>{
+  const elements=context.window.ELEMENTS;
+  assert.equal(elements.length,118);
+  assert.equal(new Set(elements.map(e=>e.symbol)).size,118);
+  assert.equal(new Set(elements.map(e=>e.name)).size,118);
+  elements.forEach((e,i)=>{
+    assert.equal(e.number,i+1);assert.match(e.symbol,/^[A-Z][a-z]?$/);assert.ok(e.name);
+    assert.ok(context.window.ElementsQuiz.correct(e.symbol,i,'title'));
+    assert.ok(context.window.ElementsQuiz.correct(e.name,i,'author'));
+    assert.ok(!context.window.ElementsQuiz.correct(e.symbol.toLowerCase(),i,'title'));
+  });
+  const rows=elements.map(e=>({year:e.number,title:e.symbol,author:e.name}));
+  const game=memory.createGame(rows);
+  assert.equal(game.deck.length,354);
+  rows.forEach(b=>{for(const field of ['year','title','author']) memory.flip(game,`${b.year}-${field}`,rows);assert.ok(game.matched);memory.resolve(game);});
+  assert.equal(game.phase,'complete');assert.equal(game.tries,118);
+});
+test('Best scores are shared across random samples of the same size, isolated by topic and count',()=>{
+  const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)};
+  memory.saveBest(storage,books.slice(0,2),4,'hontai');
+  assert.equal(memory.readBest(storage,books.slice(2,4),'hontai').tries,4);
+  assert.equal(memory.readBest(storage,books.slice(0,3),'hontai'),null);
+  assert.equal(memory.readBest(storage,books.slice(0,2),'elements'),null);
 });

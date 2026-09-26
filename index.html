@@ -596,7 +596,7 @@
       .mode-card[aria-disabled="true"] { opacity: 0.72; }
     }
   </style>
-  <link rel="stylesheet" href="./hontai.css?v=20260918-4">
+  <link rel="stylesheet" href="./hontai.css?v=20260926-1">
 </head>
 <body>
   <div class="app">
@@ -653,13 +653,17 @@
 
       <div class="training-heading">
         <h2>TRAINING MODE</h2>
-        <span>本屋大賞クイズを公開中</span>
+        <span>本屋大賞・元素クイズを公開中</span>
       </div>
 
       <section class="training-grid" aria-label="トレーニングモード">
         <button class="mode-card hq-mode" type="button" data-open-hontai>
           <span class="mode-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c-3-2-7-2-10-1v15c3-1 7-1 10 1m0-15c3-2 7-2 10-1v15c-3-1-7-1-10 1V5Z"/></svg></span>
           <strong>本屋大賞</strong>
+        </button>
+        <button class="mode-card hq-mode" type="button" data-open-elements>
+          <span class="mode-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(-60 12 12)"/></svg></span>
+          <strong>元素</strong>
         </button>
         <article class="mode-card" aria-disabled="true">
           <div class="mode-icon">
@@ -684,9 +688,11 @@
       <div id="hontai-view" hidden></div>
     </main>
   </div>
-  <script src="./hontai-data.js?v=20260918-4"></script>
-  <script src="./hontai-memory.js?v=20260918-4"></script>
-  <script src="./hontai.js?v=20260918-5"></script>
-  <script src="./hontai-page.js?v=20260918-4"></script>
+  <script src="./hontai-data.js?v=20260926-1"></script>
+  <script src="./hontai-memory.js?v=20260926-1"></script>
+  <script src="./hontai-ruby.js?v=20260926-1"></script>
+  <script src="./elements-data.js?v=20260926-1"></script>
+  <script src="./hontai.js?v=20260926-1"></script>
+  <script src="./hontai-page.js?v=20260926-1"></script>
 </body>
 </html>
