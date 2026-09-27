@@ -596,7 +596,8 @@
       .mode-card[aria-disabled="true"] { opacity: 0.72; }
     }
   </style>
-  <link rel="stylesheet" href="./hontai.css?v=20260926-1">
+  <link rel="stylesheet" href="./hontai.css?v=20260927-1">
+  <link rel="stylesheet" href="./timeline.css?v=20260927-1">
 </head>
 <body>
   <div class="app">
@@ -653,7 +654,7 @@
 
       <div class="training-heading">
         <h2>TRAINING MODE</h2>
-        <span>本屋大賞・元素クイズを公開中</span>
+        <span>本屋大賞・元素・年表を公開中</span>
       </div>
 
       <section class="training-grid" aria-label="トレーニングモード">
@@ -664,6 +665,10 @@
         <button class="mode-card hq-mode" type="button" data-open-elements>
           <span class="mode-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(-60 12 12)"/></svg></span>
           <strong>元素</strong>
+        </button>
+        <button class="mode-card hq-mode" type="button" data-open-timeline>
+          <span class="mode-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v18m0-15h12M6 12h8m-8 6h12"/><circle cx="6" cy="6" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="6" cy="18" r="2"/></svg></span>
+          <strong>年表</strong>
         </button>
         <article class="mode-card" aria-disabled="true">
           <div class="mode-icon">
@@ -688,11 +693,13 @@
       <div id="hontai-view" hidden></div>
     </main>
   </div>
-  <script src="./hontai-data.js?v=20260926-1"></script>
+  <script src="./hontai-data.js?v=20260927-1"></script>
   <script src="./hontai-memory.js?v=20260926-1"></script>
   <script src="./hontai-ruby.js?v=20260926-1"></script>
   <script src="./elements-data.js?v=20260926-1"></script>
-  <script src="./hontai.js?v=20260926-1"></script>
-  <script src="./hontai-page.js?v=20260926-1"></script>
+  <script src="./hontai.js?v=20260927-1"></script>
+  <script src="./timeline-data.js?v=20260927-1"></script>
+  <script src="./timeline.js?v=20260927-1"></script>
+  <script src="./hontai-page.js?v=20260927-1"></script>
 </body>
 </html>

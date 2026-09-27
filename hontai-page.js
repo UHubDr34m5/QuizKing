@@ -5,10 +5,13 @@
   const homeButton = document.querySelector('.rail [aria-label="ホーム"]');
   const quizButton = document.querySelector('.rail [data-open-hontai]');
   const routes = Object.fromEntries(['hontai','elements'].flatMap(subject => ['', '/perfect', '/memory'].map(path => [`#${subject}${path}`, {subject, mode:path.slice(1) || 'menu'}])));
+  routes['#timeline'] = {subject:'timeline', mode:'menu'};
+  routes['#timeline/sort'] = {subject:'timeline', mode:'sort'};
+  const quizzes = {hontai:window.HontaiQuiz, elements:window.ElementsQuiz, timeline:window.TimelineQuiz};
   function showView() {
     const route = routes[location.hash], playing = Boolean(route);
-    const activeQuiz = route?.subject === 'elements' ? window.ElementsQuiz : window.HontaiQuiz;
-    window.HontaiQuiz.leave(); window.ElementsQuiz.leave();
+    const activeQuiz = route ? quizzes[route.subject] : null;
+    Object.values(quizzes).forEach(quiz => quiz.leave());
     home.hidden = playing; quiz.hidden = !playing;
     document.body.classList.toggle('hontai-active', playing);
     homeButton.removeAttribute('aria-current'); quizButton.removeAttribute('aria-current');
@@ -22,6 +25,9 @@
     window.scrollTo(0, 0);
   }
   document.addEventListener('click', event => {
+    if (event.target.closest('[data-open-timeline]')) {
+      if (location.hash === '#timeline') showView(); else location.hash = 'timeline';
+    }
     if (event.target.closest('[data-open-elements]')) {
       if (location.hash === '#elements') showView(); else location.hash = 'elements';
     }

@@ -171,3 +171,9 @@
   .hq-page[data-subject="elements"] .hq-card { min-height: 180px; height: 180px; }
   .hq-page[data-subject="elements"] .hq-picks > div { height: 85px; }
 }
+
+/* Longer synopses use short paragraphs and a readable line length. */
+.hq-dialog { width: min(700px, calc(100% - 32px)); }
+.hq-synopsis p { margin: 0 0 1.25em; line-height: 2; overflow-wrap: anywhere; }
+.hq-synopsis p:last-child { margin-bottom: 0; }
+@media(max-width:720px) { .hq-dialog { padding: 22px 18px; } .hq-synopsis { font-size: 15px; } }

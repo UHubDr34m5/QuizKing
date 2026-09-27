@@ -232,7 +232,7 @@ window.createRecallQuiz = (subject = 'hontai') => {
     if (action === 'next-try' && mode === 'memory' && game && game.phase === 'review' && !game.matched) { memory.resolve(game); drawMemory(); }
     if (action === 'synopsis') {
       const b = books[Number(el.dataset.index)], dialog = document.querySelector('.hq-dialog');
-      dialog.innerHTML = `${button('close', '閉じる ×', 'class="hq-close"')}<p>${b.year}年 本屋大賞</p><h2 id="hq-dialog-title">${display(b, 'title')}</h2><p>${display(b, 'author')}</p><p class="hq-synopsis">${esc(b.synopsis)}</p><a href="${b.source}" target="_blank" rel="noopener">作品紹介の参照元 ↗</a> · <a href="${b.awardSource}" target="_blank" rel="noopener">受賞情報 ↗</a>`;
+      dialog.innerHTML = `${button('close', '閉じる ×', 'class="hq-close"')}<p>${b.year}年 本屋大賞</p><h2 id="hq-dialog-title">${display(b, 'title')}</h2><p>${display(b, 'author')}</p><div class="hq-synopsis">${b.synopsis.split(/\n\n+/).map(paragraph => `<p>${esc(paragraph)}</p>`).join('')}</div><a href="${b.source}" target="_blank" rel="noopener">作品紹介の参照元 ↗</a> · <a href="${b.awardSource}" target="_blank" rel="noopener">受賞情報 ↗</a>`;
       dialog.showModal();
     }
     if (action === 'close') document.querySelector('.hq-dialog').close();
