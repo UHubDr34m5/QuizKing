@@ -1,8 +1,85 @@
-/* Add events here; both the answer axis and the selection limit use this list. */
-window.TIMELINE_EVENTS = [
-  {id:'reiwa', title:'元号「令和」が始まる', date:'2019-05-01'},
-  {id:'sarin', title:'地下鉄サリン事件', date:'1995-03-20'},
-  {id:'consumption-tax', title:'日本で消費税が導入される', date:'1989-04-01'},
-  {id:'spirited-away', title:'『千と千尋の神隠し』公開', date:'2001-07-20'},
-  {id:'okinawa', title:'沖縄返還', date:'1972-05-15'},
-];
+/* Multiple tags per event. Movie dates: first theatrical release in Japan.
+ * Research cutoff 2026-09-29. PIXAR: released features. Ghibli: official works list
+ * including Nausicaa, Ocean Waves and two theatrical shorts.
+ * dateEnd preserves multi-day events; sorting uses the start date.
+ */
+window.TIMELINE_EVENTS = (() => {
+  const movie = (tag, rows, source) => rows.map(([id, title, date, override, note]) => ({
+    id, title: `『${title}』公開`, date, tags: ['映画', tag], source: override || source, ...(note ? {note} : {})
+  }));
+  return [
+    {id:'reiwa', title:'元号「令和」が始まる', date:'2019-05-01', tags:['日本史','政治・社会']},
+    {id:'sarin', title:'地下鉄サリン事件', date:'1995-03-20', tags:['日本史','事件']},
+    {id:'consumption-tax', title:'日本で消費税が導入される', date:'1989-04-01', tags:['日本史','政治・社会']},
+    {id:'okinawa', title:'沖縄返還', date:'1972-05-15', tags:['日本史','政治・社会']},
+    {id:'dango', title:'『だんご三兄弟』がリリースされる', date:'1999-03-03', tags:['音楽','日本史']},
+    {id:'tohoku-earthquake', title:'東日本大震災', date:'2011-03-11', tags:['震災','日本史']},
+    {id:'kanto-earthquake', title:'関東大震災', date:'1923-09-01', tags:['震災','日本史']},
+    {id:'takaichi', title:'高市早苗が日本初の女性首相に就任', date:'2025-10-21', tags:['日本史','政治・社会'], source:'https://www.kantei.go.jp/jp/104/statement/2025/1021kaiken.html'},
+    {id:'hanshin-earthquake', title:'阪神・淡路大震災', date:'1995-01-17', tags:['震災','日本史']},
+    {id:'berlin-wall', title:'ベルリンの壁崩壊', date:'1989-11-09', tags:['世界史','政治・社会']},
+    {id:'soviet-union', title:'ソビエト連邦崩壊', date:'1991-12-25', dateEnd:'1991-12-26', tags:['世界史','政治・社会'], note:'12月25日にゴルバチョフ大統領が辞任、26日にソ連の消滅が宣言されました。並び替えは開始日を基準にします。'},
+    ...movie('ジブリ', [
+      ['nausicaa','風の谷のナウシカ','1984-03-11',null,'スタジオジブリ設立前の作品。公式作品一覧に準じて収録しています。'],
+      ['laputa','天空の城ラピュタ','1986-08-02'],
+      ['totoro','となりのトトロ','1988-04-16'],
+      ['fireflies','火垂るの墓','1988-04-16'],
+      ['kiki','魔女の宅急便','1989-07-29'],
+      ['only-yesterday','おもひでぽろぽろ','1991-07-20'],
+      ['porco-rosso','紅の豚','1992-07-18'],
+      ['ocean-waves','海がきこえる','1993-12-25','https://eiga.com/movie/40813/','テレビ初放送は1993年5月5日。ここでは日本の劇場公開日を使用しています。'],
+      ['pom-poko','平成狸合戦ぽんぽこ','1994-07-16'],
+      ['whisper','耳をすませば','1995-07-15'],
+      ['on-your-mark','On Your Mark','1995-07-15',null,'『耳をすませば』と併映された短編作品。'],
+      ['mononoke','もののけ姫','1997-07-12'],
+      ['yamadas','ホーホケキョ となりの山田くん','1999-07-17'],
+      ['spirited-away','千と千尋の神隠し','2001-07-20'],
+      ['cat-returns','猫の恩返し','2002-07-20'],
+      ['ghiblies','ギブリーズ episode2','2002-07-20',null,'『猫の恩返し』と併映された短編作品。'],
+      ['howl','ハウルの動く城','2004-11-20'],
+      ['earthsea','ゲド戦記','2006-07-29'],
+      ['ponyo','崖の上のポニョ','2008-07-19'],
+      ['arrietty','借りぐらしのアリエッティ','2010-07-17'],
+      ['poppy-hill','コクリコ坂から','2011-07-16'],
+      ['wind-rises','風立ちぬ','2013-07-20'],
+      ['kaguya','かぐや姫の物語','2013-11-23'],
+      ['marnie','思い出のマーニー','2014-07-19'],
+      ['red-turtle','レッドタートル ある島の物語','2016-09-17'],
+      ['earwig','アーヤと魔女','2021-08-27',null,'テレビ初放送は2020年12月30日。ここでは日本の劇場公開日を使用しています。'],
+      ['heron','君たちはどう生きるか','2023-07-14'],
+    ], 'https://www.ghibli.jp/works/'),
+    ...movie('PIXAR', [
+      ['toy-story','トイ・ストーリー','1996-03-23'],
+      ['bugs-life','バグズ・ライフ','1999-03-13'],
+      ['toy-story-2','トイ・ストーリー2','2000-03-11'],
+      ['monsters-inc','モンスターズ・インク','2002-03-02'],
+      ['nemo','ファインディング・ニモ','2003-12-06'],
+      ['incredibles','Mr.インクレディブル','2004-12-04'],
+      ['cars','カーズ','2006-07-01'],
+      ['ratatouille','レミーのおいしいレストラン','2007-07-28'],
+      ['wall-e','ウォーリー','2008-12-05'],
+      ['up','カールじいさんの空飛ぶ家','2009-12-05'],
+      ['toy-story-3','トイ・ストーリー3','2010-07-10'],
+      ['cars-2','カーズ2','2011-07-30'],
+      ['brave','メリダとおそろしの森','2012-07-21'],
+      ['monsters-university','モンスターズ・ユニバーシティ','2013-07-06'],
+      ['inside-out','インサイド・ヘッド','2015-07-18'],
+      ['good-dinosaur','アーロと少年','2016-03-12'],
+      ['dory','ファインディング・ドリー','2016-07-16'],
+      ['cars-3','カーズ／クロスロード','2017-07-15'],
+      ['coco','リメンバー・ミー','2018-03-16'],
+      ['incredibles-2','インクレディブル・ファミリー','2018-08-01'],
+      ['toy-story-4','トイ・ストーリー4','2019-07-12','https://www.universal-music.co.jp/disneymusic/news/2019-03-20-video/'],
+      ['onward','2分の1の魔法','2020-08-21'],
+      ['soul','ソウルフル・ワールド','2024-04-12','https://www.disney.co.jp/movie/soulfulworld','2020年に配信開始。ここでは日本の劇場公開日を使用しています。'],
+      ['luca','あの夏のルカ','2024-03-29','https://www.disney.co.jp/movie/luca','2021年に配信開始。ここでは日本の劇場公開日を使用しています。'],
+      ['turning-red','私ときどきレッサーパンダ','2024-03-15','https://www.disney.co.jp/movie/lesserpanda','2022年に配信開始。ここでは日本の劇場公開日を使用しています。'],
+      ['lightyear','バズ・ライトイヤー','2022-07-01'],
+      ['elemental','マイ・エレメント','2023-08-04'],
+      ['inside-out-2','インサイド・ヘッド2','2024-08-01'],
+      ['elio','星つなぎのエリオ','2025-08-01','https://www.disney.co.jp/movie/elio'],
+      ['hoppers','私がビーバーになる時','2026-03-13','https://www.disney.co.jp/movie/beaver'],
+      ['toy-story-5','トイ・ストーリー5','2026-07-03','https://www.disney.co.jp/movie/toy5'],
+    ], 'https://nendai-ryuukou.com/article/156.html'),
+  ];
+})();
