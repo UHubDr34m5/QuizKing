@@ -3,8 +3,15 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const context={window:{},document:{addEventListener(){}}};vm.createContext(context);
-for(const file of ['timeline-data.js','timeline.js','hontai-data.js']) vm.runInContext(fs.readFileSync(`${__dirname}/../${file}`,'utf8'),context);
+for(const file of ['timeline-data.js','timeline-details.js','timeline.js','hontai-data.js']) vm.runInContext(fs.readFileSync(`${__dirname}/../${file}`,'utf8'),context);
 const {TIMELINE_EVENTS:events,TimelineRules:r}=context.window;
+test('Every timeline event has explanatory paragraphs and a reference',()=>{
+ for(const event of events){
+  assert.ok(event.description?.length>100,event.id);
+  assert.equal(event.description.split('\n\n').length,2,event.id);
+  assert.match(event.detailSource,/^https:\/\//,event.id);
+ }
+});
 test('Requested titles and dates are preserved exactly',()=>{
  assert.equal(events.length,69);
  for(const [title,date] of [

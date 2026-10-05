@@ -65,3 +65,20 @@
   .tl-controls button { min-width: 66px; }
   .tl-jump { flex-wrap: wrap; gap: 3px; }
 }
+
+.tl-challenge { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0; padding: 0; border: 0; }
+.tl-challenge legend { margin-bottom: 10px; font-size: 14px; color: #d5deea; }
+.tl-challenge label { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 12px 16px; border: 1px solid #7c899d; border-radius: 10px; cursor: pointer; font-size: 15px; }
+.tl-challenge label:has(:checked) { border-color: #5ee7f2; background: #5ee7f212; }
+.tl-challenge input { width: 18px; height: 18px; margin: 0; accent-color: #5ee7f2; }
+.tl-event-link { display: block; max-width: 100%; min-height: 44px; text-align: left; line-height: 1.8; font-size: 16px; overflow-wrap: anywhere; }
+.tl-dialog time { color: #e6bf77; }
+.tl-dialog .hq-close { position: sticky; top: 0; background: #17283b; min-height: 44px; }
+.tl-sources { display: flex; flex-wrap: wrap; gap: 16px; }
+.tl-sources a { color: #8ee5ed; }
+.tl-page :focus-visible { outline: 2px solid #5ee7f2; outline-offset: 4px; }
+.tl-page .hq-gate p { text-align: left; text-wrap: pretty; }
+@media(max-width:720px) {
+  .tl-challenge { flex-direction: column; }
+  .tl-event-link { font-size: 14px; }
+}
